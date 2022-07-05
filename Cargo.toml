@@ -1,0 +1,44 @@
+[package]
+name = "axiom-rs"
+version = "0.1.0"
+authors = ["Arne Bahlo <arne@axiom.co>"]
+edition = "2018"
+rust-version = "1.54"
+license = "MIT OR Apache-2.0"
+description = "A Rust SDK for Axiom"
+homepage = "https://axiom.co"
+repository = "https://github.com/axiomhq/axiom-rs"
+documentation = "https://docs.rs/axiom-rs/"
+keywords = ["axiom", "sdk", "logging", "observability"]
+readme = "README.md"
+include = ["src/**/*.rs", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
+resolver = "2"
+
+[dependencies]
+reqwest = { version = "0.11", features = ["json", "stream", "gzip", "blocking"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+serde_qs = "0.8"
+thiserror = "1"
+num_enum = "0.5"
+bytes = "1"
+flate2 = "1"
+http = "0.2"
+backoff = { version = "0.4", features = ["futures"] }
+futures = "0.3"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros"] }
+serde_test = "1"
+test-context = "0.1"
+async-trait = "0.1"
+futures-util = "0.3"
+
+[features]
+default = ["tokio", "default-tls"]
+tokio = ["backoff/tokio"]
+async-std = ["backoff/async-std"]
+default-tls = ["reqwest/default-tls"]
+native-tls = ["reqwest/native-tls"]
+rustls-tls = ["reqwest/rustls-tls"]
