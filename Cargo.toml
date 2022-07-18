@@ -27,6 +27,8 @@ flate2 = "1"
 http = "0.2"
 backoff = { version = "0.4", features = ["futures"] }
 futures = "0.3"
+tracing-subscriber = "0.3.14"
+tracing = "*"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
