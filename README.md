@@ -74,6 +74,25 @@ that can be enabled or disabled:
 - **tokio** _(enabled by default)_: Enables the usage with the `tokio` runtime.
 - **async-std** : Enables the usage with the `async-std` runtime.
 
+## Sending logs to Axiom
+
+Rust tracing could be used to send logs to Axiom. axiom-rs provides
+a tracing layer for doing that. usage:
+
+```
+use axiom_rs::tracing::TelemetryLayer;
+use tracing::{event, field, Level};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+
+fn main() {
+    tracing_subscriber::registry().with(TelemetryLayer).init();
+
+    event!(Level::INFO, msg="Hello!", answer = 42, question = "life, the universe, and everything");
+}
+```
+
+
 ## License
 
 Licensed under either of

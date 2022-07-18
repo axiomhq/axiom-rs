@@ -36,6 +36,7 @@ mod http;
 mod serde;
 
 pub mod datasets;
+pub mod tracing;
 mod users;
 mod version;
 pub mod virtual_fields;
