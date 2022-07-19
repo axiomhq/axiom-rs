@@ -266,29 +266,6 @@ async fn test_datasets(&mut ctx: Context) {
     assert_eq!("event_count", agg.alias);
     assert_eq!(3, agg.value);
 
-    // Give the server time to store the queries.
-    tokio::time::sleep(StdDuration::from_secs(1)).await;
-
-    let query_result_saved_query_id = query_result.saved_query_id.unwrap();
-    let history_query = ctx
-        .client
-        .datasets
-        .history(query_result_saved_query_id.clone())
-        .await
-        .unwrap();
-    assert_eq!(query_result_saved_query_id, history_query.id);
-    assert_eq!(QueryKind::Analytics, history_query.kind);
-
-    let apl_result_saved_query_id = apl_query_result.saved_query_id.unwrap();
-    let history_query = ctx
-        .client
-        .datasets
-        .history(apl_result_saved_query_id.clone())
-        .await
-        .unwrap();
-    assert_eq!(apl_result_saved_query_id, history_query.id);
-    assert_eq!(QueryKind::Apl, history_query.kind);
-
     // Trim the dataset down to a minimum.
     let trim_result = ctx
         .client

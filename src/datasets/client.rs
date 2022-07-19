@@ -105,15 +105,6 @@ impl Client {
             .await
     }
 
-    /// Retrieve the query stored inside the query history dataset identified by its id.
-    pub async fn history<I: Into<String>>(&self, query_id: I) -> Result<HistoryQuery> {
-        self.http_client
-            .get(format!("/datasets/_history/{}", query_id.into()))
-            .await?
-            .json()
-            .await
-    }
-
     /// Retrieve the information of the dataset identified by its id.
     pub async fn info<N: Into<String>>(&self, dataset_name: N) -> Result<Info> {
         self.http_client

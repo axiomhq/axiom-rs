@@ -308,32 +308,6 @@ impl Default for AplResultFormat {
     }
 }
 
-/// A query stored inside the query history.
-#[derive(Deserialize, Debug)]
-pub struct HistoryQuery {
-    /// The unique id of the starred query.
-    pub id: String,
-    /// The kind of the starred query.
-    pub kind: QueryKind,
-    /// The dataset the starred query belongs to.
-    pub dataset: String,
-    /// Owner is the ID of the starred queries owner. Can be a user or team ID.
-    pub owner: Option<String>,
-    /// Query is the actual query.
-    pub query: HistoryQueryRequest,
-    /// The time the starred query was created at.
-    pub created: DateTime<Utc>,
-}
-
-/// A [`HistoryQuery`] can embed either an [`AplQuery`] or a [`Query`].
-#[derive(Deserialize, Debug)]
-#[serde(untagged)]
-#[non_exhaustive]
-pub enum HistoryQueryRequest {
-    Apl(AplQuery),
-    Query(Box<Query>),
-}
-
 /// The kind of a query.
 #[derive(Debug, PartialEq, Eq)]
 #[non_exhaustive]

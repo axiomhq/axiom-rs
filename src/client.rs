@@ -160,7 +160,7 @@ impl Builder {
         Ok(Client {
             url,
             datasets: datasets::Client::new(http_client.clone()),
-            users: users::Client::new(http_client.clone()),
+            users: users::Client::new(http_client),
         })
     }
 }
