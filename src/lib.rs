@@ -38,7 +38,6 @@ mod serde;
 pub mod datasets;
 mod users;
 mod version;
-pub mod virtual_fields;
 
 pub use client::Client;
 pub use error::Error;

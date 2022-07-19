@@ -4,7 +4,7 @@ use std::env;
 use crate::{
     datasets,
     error::{Error, Result},
-    http, is_personal_token, users, version, virtual_fields,
+    http, is_personal_token, users, version,
 };
 
 /// Cloud URL is the URL for Axiom Cloud.
@@ -39,7 +39,6 @@ pub struct Client {
     pub datasets: datasets::Client,
     users: users::Client,
     version: version::Client,
-    pub virtual_fields: virtual_fields::Client,
 }
 
 impl Client {
@@ -172,7 +171,6 @@ impl Builder {
             url,
             datasets: datasets::Client::new(http_client.clone()),
             users: users::Client::new(http_client.clone()),
-            virtual_fields: virtual_fields::Client::new(http_client.clone()),
             version: version::Client::new(http_client),
         })
     }
