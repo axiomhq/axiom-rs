@@ -36,7 +36,7 @@ mod http;
 mod serde;
 
 pub mod datasets;
-mod users;
+pub mod users;
 mod version;
 
 pub use client::Client;

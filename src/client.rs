@@ -37,7 +37,7 @@ static CLOUD_URL: &str = "https://cloud.axiom.co";
 pub struct Client {
     url: String,
     pub datasets: datasets::Client,
-    users: users::Client,
+    pub users: users::Client,
     version: version::Client,
 }
 
