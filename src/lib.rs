@@ -37,7 +37,6 @@ mod serde;
 
 pub mod datasets;
 pub mod users;
-mod version;
 
 pub use client::Client;
 pub use error::Error;

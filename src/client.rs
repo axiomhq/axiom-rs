@@ -4,7 +4,7 @@ use std::env;
 use crate::{
     datasets,
     error::{Error, Result},
-    http, is_personal_token, users, version,
+    http, is_personal_token, users,
 };
 
 /// Cloud URL is the URL for Axiom Cloud.
@@ -38,7 +38,6 @@ pub struct Client {
     url: String,
     pub datasets: datasets::Client,
     pub users: users::Client,
-    version: version::Client,
 }
 
 impl Client {
@@ -57,12 +56,9 @@ impl Client {
         self.url.clone()
     }
 
-    /// Get the server and client versions.
-    pub async fn version(&self) -> Result<Version> {
-        Ok(Version {
-            server: self.version.get().await?,
-            client: env!("CARGO_PKG_VERSION").to_string(),
-        })
+    /// Get client version.
+    pub async fn version(&self) -> String {
+        env!("CARGO_PKG_VERSION").to_string()
     }
 
     /// Make sure the client can properly authenticate against the configured
@@ -71,12 +67,6 @@ impl Client {
         self.users.current().await?;
         Ok(())
     }
-}
-
-/// The server and client versions.
-pub struct Version {
-    pub server: String,
-    pub client: String,
 }
 
 /// This builder is used to create a new client.
@@ -171,7 +161,6 @@ impl Builder {
             url,
             datasets: datasets::Client::new(http_client.clone()),
             users: users::Client::new(http_client.clone()),
-            version: version::Client::new(http_client),
         })
     }
 }
