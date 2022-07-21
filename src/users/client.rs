@@ -1,6 +1,7 @@
 use crate::{error::Result, http, users::model::*};
 
 /// Provides methods to work with Axiom datasets.
+#[derive(Clone)]
 pub struct Client {
     http_client: http::Client,
 }

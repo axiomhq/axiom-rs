@@ -34,6 +34,7 @@ static CLOUD_URL: &str = "https://cloud.axiom.co";
 ///     Ok(())
 /// }
 /// ```
+#[derive(Clone)]
 pub struct Client {
     url: String,
     pub datasets: datasets::Client,
