@@ -1,7 +1,12 @@
 name: CI
 
 on: 
-  - push
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
 
 jobs:
   rust_fmt_check:
@@ -75,7 +80,7 @@ jobs:
   publish_on_crates_io:
     name: Publish on crates.io
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags') # Only on tags
+    if: github.repository_owner == 'axiomhq' && startsWith(github.ref, 'refs/tags') # Only on tags
     needs:
       - rust_fmt_check
       - clippy_check
