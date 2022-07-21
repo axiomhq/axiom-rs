@@ -37,7 +37,7 @@ impl AsyncTestContext for Context {
 
 #[test_context(Context)]
 #[tokio::test]
-async fn test_datasets(&mut ctx: Context) {
+async fn test_datasets(ctx: &mut Context) {
     // Let's update the dataset.
     let dataset = ctx
         .client
