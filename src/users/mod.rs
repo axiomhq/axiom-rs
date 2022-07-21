@@ -2,4 +2,4 @@
 mod client;
 mod model;
 
-pub(crate) use client::Client;
+pub use client::Client;
