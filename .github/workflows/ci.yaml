@@ -13,9 +13,8 @@ jobs:
     name: Rustfmt check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
@@ -35,9 +34,8 @@ jobs:
     name: Clippy check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v1
-      - uses: actions/cache@v2
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
@@ -54,12 +52,10 @@ jobs:
     name: Run tests
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Setup Axiom
+      - uses: actions/checkout@v3
+      - uses: axiomhq/setup-axiom@v1
         id: axiom
-        uses: axiomhq/setup-axiom@v1
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
@@ -86,12 +82,9 @@ jobs:
       - clippy_check
       - test
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Install rust
-        uses: actions-rs/toolchain@v1
-      - name: Run cargo publish
-        uses: actions-rs/cargo@v1
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+      - uses: actions-rs/cargo@v1
         with:
           command: publish
         env:
