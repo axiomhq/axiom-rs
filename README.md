@@ -58,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 > **Note**: The `Client` constructor uses `AXIOM_TOKEN` and other parameters
   from your environment by default. See the
-  [`Client` documentation](https://docs.rs/axiom-rs/struct.Client.html)
+  [`Client` documentation](https://docs.rs/axiom-rs/latest/axiom_rs/client/struct.Client.html)
   for other options.
 
 ## Optional Features
