@@ -1,3 +1,5 @@
+#[cfg(feature = "async-std")]
+use async_std::task::spawn_blocking;
 use bytes::Bytes;
 use flate2::{write::GzEncoder, Compression};
 use futures::{Stream, StreamExt};
@@ -9,6 +11,8 @@ use std::{
     result::Result as StdResult,
     time::Duration as StdDuration,
 };
+#[cfg(feature = "tokio")]
+use tokio::task::spawn_blocking;
 
 use crate::{
     datasets::model::*,
@@ -126,11 +130,15 @@ impl Client {
     {
         let events: Vec<E> = events.into_iter().collect();
         let json_payload = serde_json::to_vec(&events)?;
-        let mut gzip_payload = GzEncoder::new(Vec::new(), Compression::default());
-        gzip_payload
-            .write_all(&json_payload)
-            .map_err(Error::Encoding)?;
-        let payload = gzip_payload.finish().map_err(Error::Encoding)?;
+        let payload = spawn_blocking(move || {
+            let mut gzip_payload = GzEncoder::new(Vec::new(), Compression::default());
+            gzip_payload.write_all(&json_payload)?;
+            gzip_payload.finish()
+        })
+        .await;
+        #[cfg(feature = "tokio")]
+        let payload = payload.map_err(Error::JoinError)?;
+        let payload = payload.map_err(Error::Encoding)?;
 
         self.ingest_raw(
             dataset_name,
