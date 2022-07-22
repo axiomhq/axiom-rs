@@ -35,9 +35,21 @@ impl AsyncTestContext for Context {
     }
 }
 
+#[cfg(feature = "tokio")]
 #[test_context(Context)]
 #[tokio::test]
 async fn test_datasets(ctx: &mut Context) {
+    test_datasets_impl(ctx).await;
+}
+
+#[cfg(feature = "async-std")]
+#[test_context(Context)]
+#[async_std::test]
+async fn test_datasets(ctx: &mut Context) {
+    test_datasets_impl(ctx).await;
+}
+
+async fn test_datasets_impl(ctx: &mut Context) {
     // Let's update the dataset.
     let dataset = ctx
         .client
