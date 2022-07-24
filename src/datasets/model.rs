@@ -12,6 +12,7 @@ use std::{
     fmt::{self, Display},
     ops::Add,
 };
+use thiserror::Error;
 
 use crate::serde::{deserialize_null_default, empty_string_as_none};
 
@@ -803,23 +804,59 @@ impl<'de> Deserialize<'de> for CacheStatus {
 /// A message that is returned in the status of a query.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct QueryMessage {
-    // priority: QueryMessagePriority,
+    priority: QueryMessagePriority,
     count: u32,
     // code: QueryMessageCode,
     text: Option<String>,
 }
 
 /// The priority of a query message.
-#[derive(IntoPrimitive, TryFromPrimitive, Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum QueryMessagePriority {
-    Trace = 1,
-    Debug = 2,
-    Info = 3,
-    Warn = 4,
-    Error = 5,
-    Fatal = 6,
+    Trace,
+    Debug,
+    Info,
+    Warn,
+    Error,
+    Fatal,
+}
+
+impl std::fmt::Display for QueryMessagePriority {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            QueryMessagePriority::Trace => "trace",
+            QueryMessagePriority::Debug => "debug",
+            QueryMessagePriority::Info => "info",
+            QueryMessagePriority::Warn => "warn",
+            QueryMessagePriority::Error => "error",
+            QueryMessagePriority::Fatal => "fatal",
+        })
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum ParseQueryMessagePriorityError {
+    #[error("Unknown item: {0}")]
+    UnknownItem(String),
+}
+
+impl TryFrom<&str> for QueryMessagePriority {
+    type Error = ParseQueryMessagePriorityError;
+
+    fn try_from(s: &str) -> Result<Self, <QueryMessagePriority as TryFrom<&str>>::Error> {
+        match s {
+            "trace" => Ok(QueryMessagePriority::Trace),
+            "debug" => Ok(QueryMessagePriority::Debug),
+            "info" => Ok(QueryMessagePriority::Info),
+            "warn" => Ok(QueryMessagePriority::Warn),
+            "error" => Ok(QueryMessagePriority::Error),
+            "fatal" => Ok(QueryMessagePriority::Fatal),
+            item => Err(ParseQueryMessagePriorityError::UnknownItem(
+                item.to_string(),
+            )),
+        }
+    }
 }
 
 impl Serialize for QueryMessagePriority {
@@ -827,7 +864,7 @@ impl Serialize for QueryMessagePriority {
     where
         S: Serializer,
     {
-        serializer.serialize_u8((*self).into())
+        serializer.serialize_str(self.to_string().as_str())
     }
 }
 
@@ -836,7 +873,7 @@ impl<'de> Deserialize<'de> for QueryMessagePriority {
     where
         D: Deserializer<'de>,
     {
-        let value: u8 = Deserialize::deserialize(deserializer)?;
+        let value: &str = Deserialize::deserialize(deserializer)?;
         Self::try_from(value).map_err(serde::de::Error::custom)
     }
 }
