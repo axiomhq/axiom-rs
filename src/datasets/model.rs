@@ -806,7 +806,7 @@ impl<'de> Deserialize<'de> for CacheStatus {
 pub struct QueryMessage {
     priority: QueryMessagePriority,
     count: u32,
-    // code: QueryMessageCode,
+    code: QueryMessageCode,
     text: Option<String>,
 }
 
@@ -879,14 +879,38 @@ impl<'de> Deserialize<'de> for QueryMessagePriority {
 }
 
 /// The code of a message that is returned in the status of a query.
-#[derive(IntoPrimitive, TryFromPrimitive, Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum QueryMessageCode {
-    Unknown = 0,
-    VirtualFieldFinalizeError = 1,
-    LicenseLimitForQueryWarning = 2,
-    DefaultLimitWarning = 3,
+    Unknown,
+    VirtualFieldFinalizeError,
+    MissingColumn,
+    DefaultLimitWarning,
+    LicenseLimitForQueryWarning,
+}
+
+impl std::fmt::Display for QueryMessageCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            QueryMessageCode::Unknown => "unknown",
+            QueryMessageCode::VirtualFieldFinalizeError => "virtual_field_finalize_error",
+            QueryMessageCode::MissingColumn => "missing_column",
+            QueryMessageCode::DefaultLimitWarning => "default_limit_warning",
+            QueryMessageCode::LicenseLimitForQueryWarning => "license_limit_for_query_warning",
+        })
+    }
+}
+
+impl From<&str> for QueryMessageCode {
+    fn from(s: &str) -> Self {
+        match s {
+            "virtual_field_finalize_error" => QueryMessageCode::VirtualFieldFinalizeError,
+            "missing_column" => QueryMessageCode::MissingColumn,
+            "default_limit_warning" => QueryMessageCode::DefaultLimitWarning,
+            "license_limit_for_query_warning" => QueryMessageCode::LicenseLimitForQueryWarning,
+            _ => QueryMessageCode::Unknown,
+        }
+    }
 }
 
 impl Serialize for QueryMessageCode {
@@ -894,7 +918,7 @@ impl Serialize for QueryMessageCode {
     where
         S: Serializer,
     {
-        serializer.serialize_u8((*self).into())
+        serializer.serialize_str(self.to_string().as_str())
     }
 }
 
@@ -903,8 +927,8 @@ impl<'de> Deserialize<'de> for QueryMessageCode {
     where
         D: Deserializer<'de>,
     {
-        let value: u8 = Deserialize::deserialize(deserializer)?;
-        Self::try_from(value).map_err(serde::de::Error::custom)
+        let value: &str = Deserialize::deserialize(deserializer)?;
+        Ok(Self::from(value))
     }
 }
 
