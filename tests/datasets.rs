@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use axiom_rs::{datasets::*, Client};
 use chrono::{Duration, Utc};
+use futures::StreamExt;
 use serde_json::json;
 use std::{env, time::Duration as StdDuration};
 use test_context::{test_context, AsyncTestContext};
@@ -150,8 +151,8 @@ async fn test_datasets_impl(ctx: &mut Context) {
     assert_eq!(ingest_status.failed, 0);
     assert_eq!(ingest_status.failures.len(), 0);
 
-    // ... and a stream.
-    let stream = futures_util::stream::iter(events);
+    // ... a small stream
+    let stream = futures_util::stream::iter(events.clone());
     let ingest_status = ctx
         .client
         .datasets
@@ -162,13 +163,25 @@ async fn test_datasets_impl(ctx: &mut Context) {
     assert_eq!(ingest_status.failed, 0);
     assert_eq!(ingest_status.failures.len(), 0);
 
+    // ... and a big stream (4321 items)
+    let stream = futures_util::stream::iter(events).cycle().take(4321);
+    let ingest_status = ctx
+        .client
+        .datasets
+        .ingest_stream(&ctx.dataset.name, stream)
+        .await
+        .unwrap();
+    assert_eq!(ingest_status.ingested, 4321);
+    assert_eq!(ingest_status.failed, 0);
+    assert_eq!(ingest_status.failures.len(), 0);
+
     // Give the db some time to write the data.
     tokio::time::sleep(StdDuration::from_secs(15)).await;
 
     // Get the dataset info and make sure four events have been ingested.
     let info = ctx.client.datasets.info(&ctx.dataset.name).await.unwrap();
     assert_eq!(ctx.dataset.name, info.stat.name);
-    assert_eq!(6, info.stat.num_events);
+    assert_eq!(4327, info.stat.num_events);
     assert!(info.fields.len() > 0);
 
     // Run a query and make sure we see some results.
@@ -191,9 +204,9 @@ async fn test_datasets_impl(ctx: &mut Context) {
         .unwrap();
     assert!(simple_query_result.saved_query_id.is_some());
     // assert_eq!(1, simple_query_result.status.blocks_examined);
-    assert_eq!(6, simple_query_result.status.rows_examined);
-    assert_eq!(6, simple_query_result.status.rows_matched);
-    assert_eq!(6, simple_query_result.matches.len());
+    assert_eq!(4327, simple_query_result.status.rows_examined);
+    assert_eq!(4327, simple_query_result.status.rows_matched);
+    assert_eq!(1000, simple_query_result.matches.len());
 
     // Run another query but using APL.
     let apl_query_result = ctx
@@ -210,9 +223,9 @@ async fn test_datasets_impl(ctx: &mut Context) {
         .unwrap();
     assert!(apl_query_result.saved_query_id.is_some());
     // assert_eq!(1, apl_query_result.status.blocks_examined);
-    assert_eq!(6, apl_query_result.status.rows_examined);
-    assert_eq!(6, apl_query_result.status.rows_matched);
-    assert_eq!(6, apl_query_result.matches.len());
+    assert_eq!(4327, apl_query_result.status.rows_examined);
+    assert_eq!(4327, apl_query_result.status.rows_matched);
+    assert_eq!(1000, apl_query_result.matches.len());
 
     // Run a more complex query.
     let query = Query {
@@ -264,8 +277,8 @@ async fn test_datasets_impl(ctx: &mut Context) {
         )
         .await
         .unwrap();
-    assert_eq!(6, query_result.status.rows_examined);
-    assert_eq!(6, query_result.status.rows_matched);
+    assert_eq!(4327, query_result.status.rows_examined);
+    assert_eq!(4327, query_result.status.rows_matched);
     assert!(query_result.buckets.totals.len() == 2);
     let agg = query_result
         .buckets
@@ -276,7 +289,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
         .get(0)
         .unwrap();
     assert_eq!("event_count", agg.alias);
-    assert_eq!(3, agg.value);
+    assert_eq!(2164, agg.value);
 
     // Trim the dataset down to a minimum.
     let trim_result = ctx

@@ -10,6 +10,7 @@ use std::{
     collections::HashMap,
     convert::TryFrom,
     fmt::{self, Display},
+    ops::Add,
 };
 
 use crate::serde::{deserialize_null_default, empty_string_as_none};
@@ -188,7 +189,7 @@ pub struct TrimResult {
 }
 
 /// Returned on event ingestion operation.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct IngestStatus {
     /// Amount of events that have been ingested.
@@ -203,6 +204,24 @@ pub struct IngestStatus {
     pub blocks_created: u32,
     /// The length of the Write-Ahead Log.
     pub wal_length: u32,
+}
+
+impl Add for IngestStatus {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        let mut failures = self.failures;
+        failures.extend(other.failures);
+
+        Self {
+            ingested: self.ingested + other.ingested,
+            failed: self.failed + other.failed,
+            failures,
+            processed_bytes: self.processed_bytes + other.processed_bytes,
+            blocks_created: self.blocks_created + other.blocks_created,
+            wal_length: other.wal_length,
+        }
+    }
 }
 
 /// Ingestion failure of a single event.
@@ -784,10 +803,10 @@ impl<'de> Deserialize<'de> for CacheStatus {
 /// A message that is returned in the status of a query.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct QueryMessage {
-    priority: QueryMessagePriority,
+    // priority: QueryMessagePriority,
     count: u32,
-    code: QueryMessageCode,
-    text: String,
+    // code: QueryMessageCode,
+    text: Option<String>,
 }
 
 /// The priority of a query message.
