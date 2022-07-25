@@ -33,6 +33,7 @@
 pub mod client;
 pub mod error;
 mod http;
+pub mod limits;
 mod serde;
 
 pub mod datasets;
