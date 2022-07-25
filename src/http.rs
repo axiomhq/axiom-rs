@@ -44,7 +44,7 @@ impl Client {
     {
         let base_url = Url::parse(base_url.as_ref())
             .map_err(Error::InvalidUrl)?
-            .join("api/v1/")
+            .join("api/")
             .map_err(Error::InvalidUrl)?;
         let token = token.into();
 

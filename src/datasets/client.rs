@@ -64,7 +64,7 @@ impl Client {
         };
 
         let query_params = serde_qs::to_string(&query_params)?;
-        let path = format!("/datasets/_apl?{}", query_params);
+        let path = format!("/v1/datasets/_apl?{}", query_params);
         let res = self.http_client.post(path, &req).await?;
 
         let saved_query_id = res
@@ -91,20 +91,24 @@ impl Client {
             name: dataset_name.into(),
             description: description.into(),
         };
-        self.http_client.post("/datasets", &req).await?.json().await
+        self.http_client
+            .post("/v1/datasets", &req)
+            .await?
+            .json()
+            .await
     }
 
     /// Delete the dataset with the given ID.
     pub async fn delete<N: Into<String>>(&self, dataset_name: N) -> Result<()> {
         self.http_client
-            .delete(format!("/datasets/{}", dataset_name.into()))
+            .delete(format!("/v1/datasets/{}", dataset_name.into()))
             .await
     }
 
     /// Get a dataset by its id.
     pub async fn get<N: Into<String>>(&self, dataset_name: N) -> Result<Dataset> {
         self.http_client
-            .get(format!("/datasets/{}", dataset_name.into()))
+            .get(format!("/v1/datasets/{}", dataset_name.into()))
             .await?
             .json()
             .await
@@ -113,7 +117,7 @@ impl Client {
     /// Retrieve the information of the dataset identified by its id.
     pub async fn info<N: Into<String>>(&self, dataset_name: N) -> Result<Info> {
         self.http_client
-            .get(format!("/datasets/{}/info", dataset_name.into()))
+            .get(format!("/v1/datasets/{}/info", dataset_name.into()))
             .await?
             .json()
             .await
@@ -169,7 +173,7 @@ impl Client {
 
         self.http_client
             .post_bytes(
-                format!("/datasets/{}/ingest", dataset_name.into()),
+                format!("/v1/datasets/{}/ingest", dataset_name.into()),
                 payload,
                 headers,
             )
@@ -201,7 +205,7 @@ impl Client {
 
     /// List all available datasets.
     pub async fn list(&self) -> Result<Vec<Dataset>> {
-        self.http_client.get("/datasets").await?.json().await
+        self.http_client.get("/v1/datasets").await?.json().await
     }
 
     /// Execute the given query on the dataset identified by its id.
@@ -211,7 +215,7 @@ impl Client {
         O: Into<Option<QueryOptions>>,
     {
         let path = format!(
-            "/datasets/{}/query?{}",
+            "/v1/datasets/{}/query?{}",
             dataset_name.into(),
             &opts
                 .into()
@@ -246,7 +250,7 @@ impl Client {
         let duration = duration.try_into()?;
         let req = TrimRequest::new(duration.into());
         self.http_client
-            .post(format!("/datasets/{}/trim", dataset_name.into()), &req)
+            .post(format!("/v1/datasets/{}/trim", dataset_name.into()), &req)
             .await?
             .json()
             .await
@@ -259,7 +263,7 @@ impl Client {
         req: DatasetUpdateRequest,
     ) -> Result<Dataset> {
         self.http_client
-            .put(format!("/datasets/{}", dataset_name.into()), &req)
+            .put(format!("/v1/datasets/{}", dataset_name.into()), &req)
             .await?
             .json()
             .await
