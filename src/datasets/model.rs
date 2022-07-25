@@ -10,7 +10,9 @@ use std::{
     collections::HashMap,
     convert::TryFrom,
     fmt::{self, Display},
+    ops::Add,
 };
+use thiserror::Error;
 
 use crate::serde::{deserialize_null_default, empty_string_as_none};
 
@@ -188,7 +190,7 @@ pub struct TrimResult {
 }
 
 /// Returned on event ingestion operation.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct IngestStatus {
     /// Amount of events that have been ingested.
@@ -203,6 +205,24 @@ pub struct IngestStatus {
     pub blocks_created: u32,
     /// The length of the Write-Ahead Log.
     pub wal_length: u32,
+}
+
+impl Add for IngestStatus {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        let mut failures = self.failures;
+        failures.extend(other.failures);
+
+        Self {
+            ingested: self.ingested + other.ingested,
+            failed: self.failed + other.failed,
+            failures,
+            processed_bytes: self.processed_bytes + other.processed_bytes,
+            blocks_created: self.blocks_created + other.blocks_created,
+            wal_length: other.wal_length,
+        }
+    }
 }
 
 /// Ingestion failure of a single event.
@@ -787,20 +807,56 @@ pub struct QueryMessage {
     priority: QueryMessagePriority,
     count: u32,
     code: QueryMessageCode,
-    text: String,
+    text: Option<String>,
 }
 
 /// The priority of a query message.
-#[derive(IntoPrimitive, TryFromPrimitive, Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum QueryMessagePriority {
-    Trace = 1,
-    Debug = 2,
-    Info = 3,
-    Warn = 4,
-    Error = 5,
-    Fatal = 6,
+    Trace,
+    Debug,
+    Info,
+    Warn,
+    Error,
+    Fatal,
+}
+
+impl std::fmt::Display for QueryMessagePriority {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            QueryMessagePriority::Trace => "trace",
+            QueryMessagePriority::Debug => "debug",
+            QueryMessagePriority::Info => "info",
+            QueryMessagePriority::Warn => "warn",
+            QueryMessagePriority::Error => "error",
+            QueryMessagePriority::Fatal => "fatal",
+        })
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum ParseQueryMessagePriorityError {
+    #[error("Unknown item: {0}")]
+    UnknownItem(String),
+}
+
+impl TryFrom<&str> for QueryMessagePriority {
+    type Error = ParseQueryMessagePriorityError;
+
+    fn try_from(s: &str) -> Result<Self, <QueryMessagePriority as TryFrom<&str>>::Error> {
+        match s {
+            "trace" => Ok(QueryMessagePriority::Trace),
+            "debug" => Ok(QueryMessagePriority::Debug),
+            "info" => Ok(QueryMessagePriority::Info),
+            "warn" => Ok(QueryMessagePriority::Warn),
+            "error" => Ok(QueryMessagePriority::Error),
+            "fatal" => Ok(QueryMessagePriority::Fatal),
+            item => Err(ParseQueryMessagePriorityError::UnknownItem(
+                item.to_string(),
+            )),
+        }
+    }
 }
 
 impl Serialize for QueryMessagePriority {
@@ -808,7 +864,7 @@ impl Serialize for QueryMessagePriority {
     where
         S: Serializer,
     {
-        serializer.serialize_u8((*self).into())
+        serializer.serialize_str(self.to_string().as_str())
     }
 }
 
@@ -817,20 +873,44 @@ impl<'de> Deserialize<'de> for QueryMessagePriority {
     where
         D: Deserializer<'de>,
     {
-        let value: u8 = Deserialize::deserialize(deserializer)?;
+        let value: &str = Deserialize::deserialize(deserializer)?;
         Self::try_from(value).map_err(serde::de::Error::custom)
     }
 }
 
 /// The code of a message that is returned in the status of a query.
-#[derive(IntoPrimitive, TryFromPrimitive, Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum QueryMessageCode {
-    Unknown = 0,
-    VirtualFieldFinalizeError = 1,
-    LicenseLimitForQueryWarning = 2,
-    DefaultLimitWarning = 3,
+    Unknown,
+    VirtualFieldFinalizeError,
+    MissingColumn,
+    DefaultLimitWarning,
+    LicenseLimitForQueryWarning,
+}
+
+impl std::fmt::Display for QueryMessageCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            QueryMessageCode::Unknown => "unknown",
+            QueryMessageCode::VirtualFieldFinalizeError => "virtual_field_finalize_error",
+            QueryMessageCode::MissingColumn => "missing_column",
+            QueryMessageCode::DefaultLimitWarning => "default_limit_warning",
+            QueryMessageCode::LicenseLimitForQueryWarning => "license_limit_for_query_warning",
+        })
+    }
+}
+
+impl From<&str> for QueryMessageCode {
+    fn from(s: &str) -> Self {
+        match s {
+            "virtual_field_finalize_error" => QueryMessageCode::VirtualFieldFinalizeError,
+            "missing_column" => QueryMessageCode::MissingColumn,
+            "default_limit_warning" => QueryMessageCode::DefaultLimitWarning,
+            "license_limit_for_query_warning" => QueryMessageCode::LicenseLimitForQueryWarning,
+            _ => QueryMessageCode::Unknown,
+        }
+    }
 }
 
 impl Serialize for QueryMessageCode {
@@ -838,7 +918,7 @@ impl Serialize for QueryMessageCode {
     where
         S: Serializer,
     {
-        serializer.serialize_u8((*self).into())
+        serializer.serialize_str(self.to_string().as_str())
     }
 }
 
@@ -847,8 +927,8 @@ impl<'de> Deserialize<'de> for QueryMessageCode {
     where
         D: Deserializer<'de>,
     {
-        let value: u8 = Deserialize::deserialize(deserializer)?;
-        Self::try_from(value).map_err(serde::de::Error::custom)
+        let value: &str = Deserialize::deserialize(deserializer)?;
+        Ok(Self::from(value))
     }
 }
 

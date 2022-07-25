@@ -3,7 +3,7 @@ use async_std::task::spawn_blocking;
 use bytes::Bytes;
 use flate2::{write::GzEncoder, Compression};
 use futures::{Stream, StreamExt};
-use reqwest::{header, Body};
+use reqwest::header;
 use serde::Serialize;
 use std::{
     convert::{TryFrom, TryInto},
@@ -184,7 +184,9 @@ impl Client {
             .await
     }
 
-    // Ingest a stream of events into a dataset.
+    /// Ingest a stream of events into a dataset. Events will be ingested in
+    /// chunks of 1000 items. If ingestion of a chunk fails, it will be retried
+    /// with a backoff.
     /// Restrictions for field names (JSON object keys) can be reviewed here:
     /// <https://www.axiom.co/docs/usage/field-restrictions>.
     pub async fn ingest_stream<N, S, E>(&self, dataset_name: N, stream: S) -> Result<IngestStatus>
@@ -193,24 +195,14 @@ impl Client {
         S: Stream<Item = E> + Send + Sync + 'static,
         E: Serialize,
     {
-        let bytes_stream = stream.map(|item| {
-            serde_json::to_vec(&item).map(|mut v| {
-                v.push(b'\n');
-                Bytes::from(v)
-            })
-        });
-        let body = Body::wrap_stream(bytes_stream);
-
-        self.http_client
-            .post_builder(format!("/datasets/{}/ingest", dataset_name.into()))
-            .header(header::CONTENT_TYPE, ContentType::NdJson)
-            .body(body)
-            .send()
-            .await
-            .map(Response::new)
-            .map_err(Error::Http)?
-            .json()
-            .await
+        let dataset_name = dataset_name.into();
+        let mut chunks = Box::pin(stream.chunks(1000));
+        let mut ingest_status = IngestStatus::default();
+        while let Some(events) = chunks.next().await {
+            let new_ingest_status = self.ingest(dataset_name.clone(), events).await?;
+            ingest_status = ingest_status + new_ingest_status
+        }
+        Ok(ingest_status)
     }
 
     /// List all available datasets.
