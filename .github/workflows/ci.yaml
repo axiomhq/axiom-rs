@@ -51,8 +51,14 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
   test:
-    name: Run tests
+    name: Run tests on ${{ matrix.runtime }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - runtime: Tokio
+          - runtime: async-std
+            flags: --no-default-features --features async-std
     steps:
       - uses: actions/checkout@v3
       - uses: axiomhq/setup-axiom@v1
@@ -74,7 +80,7 @@ jobs:
           AXIOM_DATASET_SUFFIX: ${{ github.run_id }}
         with:
           command: test
-          args: -- --test-threads 1
+          args: ${{ matrix.flags }} -- --test-threads 1
   publish_on_crates_io:
     name: Publish on crates.io
     runs-on: ubuntu-latest

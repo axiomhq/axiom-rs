@@ -27,9 +27,12 @@ flate2 = "1"
 http = "0.2"
 backoff = { version = "0.4", features = ["futures"] }
 futures = "0.3"
+tokio = { version = "1", optional = true, features = ["rt"] }
+async-std = { version = "1", optional = true, features = ["tokio1"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
+async-std = { version = "1", features = ["attributes"] }
 serde_test = "1"
 test-context = "0.1"
 async-trait = "0.1"
@@ -37,8 +40,8 @@ futures-util = "0.3"
 
 [features]
 default = ["tokio", "default-tls"]
-tokio = ["backoff/tokio"]
-async-std = ["backoff/async-std"]
+tokio = ["backoff/tokio", "dep:tokio"]
+async-std = ["backoff/async-std", "dep:async-std"]
 default-tls = ["reqwest/default-tls"]
 native-tls = ["reqwest/native-tls"]
 rustls-tls = ["reqwest/rustls-tls"]

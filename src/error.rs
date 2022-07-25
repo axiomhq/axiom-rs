@@ -37,6 +37,9 @@ pub enum Error {
     Encoding(std::io::Error),
     #[error("Duration is out of range (can't be larger than i64::MAX milliseconds)")]
     DurationOutOfRange,
+    #[cfg(feature = "tokio")]
+    #[error("Failed to join thread: {0}")]
+    JoinError(tokio::task::JoinError),
 }
 
 /// This is the manual implementation. We don't really care if the error is
