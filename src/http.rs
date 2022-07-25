@@ -1,4 +1,6 @@
 use backoff::{future::retry, ExponentialBackoffBuilder};
+use bytes::Bytes;
+pub use http::HeaderMap;
 use reqwest::header;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{env, future::Future, result::Result as StdResult, time::Duration};
@@ -83,13 +85,33 @@ impl Client {
         S: Into<String>,
         P: Serialize,
     {
-        let path = path.into();
-        Self::retry(|| async { self.post_builder(&path).json(&payload).send().await }).await
+        let url = format!("{}{}", self.base_url, path.into());
+        Self::retry(|| async { self.inner.post(&url).json(&payload).send().await }).await
     }
 
-    pub(crate) fn post_builder<S: Into<String>>(&self, path: S) -> reqwest::RequestBuilder {
-        self.inner
-            .post(&format!("{}{}", self.base_url, path.into()))
+    pub(crate) async fn post_bytes<S, P, H>(
+        &self,
+        path: S,
+        payload: P,
+        headers: H,
+    ) -> Result<Response>
+    where
+        S: Into<String>,
+        P: Into<Bytes>,
+        H: Into<Option<HeaderMap>>,
+    {
+        let url = format!("{}{}", self.base_url, path.into());
+        let payload = payload.into();
+        let headers = headers.into().unwrap_or(HeaderMap::new());
+        Self::retry(|| async {
+            self.inner
+                .post(&url)
+                .body(payload.clone())
+                .headers(headers.clone())
+                .send()
+                .await
+        })
+        .await
     }
 
     pub(crate) async fn put<S, P>(&self, path: S, payload: P) -> Result<Response>

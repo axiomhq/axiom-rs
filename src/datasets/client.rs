@@ -17,7 +17,7 @@ use tokio::task::spawn_blocking;
 use crate::{
     datasets::model::*,
     error::{Error, Result},
-    http::{self, Response},
+    http::{self, HeaderMap},
 };
 
 /// Provides methods to work with Axiom datasets, including ingesting and
@@ -163,23 +163,17 @@ impl Client {
         N: Into<String>,
         P: Into<Bytes>,
     {
-        let mut request = self
-            .http_client
-            .post_builder(format!("/datasets/{}/ingest", dataset_name.into()))
-            .header(header::CONTENT_TYPE, content_type);
+        let mut headers = HeaderMap::new();
+        headers.insert(header::CONTENT_TYPE, content_type.into());
+        headers.insert(header::CONTENT_ENCODING, content_encoding.into());
 
-        // Add Content-Encoding header if necessary
-        request = match content_encoding {
-            ContentEncoding::Identity => request,
-            _ => request.header(header::CONTENT_ENCODING, content_encoding),
-        };
-
-        request
-            .body(payload.into())
-            .send()
-            .await
-            .map(Response::new)
-            .map_err(Error::Http)?
+        self.http_client
+            .post_bytes(
+                format!("/datasets/{}/ingest", dataset_name.into()),
+                payload,
+                headers,
+            )
+            .await?
             .json()
             .await
     }
