@@ -19,13 +19,13 @@ pub(crate) const HEADER_RATE_REMAINING: &str = "X-RateLimit-Remaining";
 pub(crate) const HEADER_RATE_RESET: &str = "X-RateLimit-Reset";
 
 #[derive(Error, Debug)]
-pub(crate) enum Error {
+pub(crate) enum InvalidHeaderError {
     #[error("Invalid limit header")]
-    InvalidLimitHeader,
+    Limit,
     #[error("Invalid remaining header")]
-    InvalidRemainingHeader,
+    Remaining,
     #[error("Invalid reset header")]
-    InvalidResetHeader,
+    Reset,
 }
 
 #[derive(Debug, Clone)]
@@ -53,7 +53,7 @@ impl Limit {
                 HEADER_INGEST_REMAINING,
                 HEADER_INGEST_RESET,
             )
-            .map(|limits| Limit::Ingest(limits))
+            .map(Limit::Ingest)
             .ok()
         } else if path.ends_with("/query") || path.ends_with("/_apl") {
             Limits::from_headers(
@@ -62,7 +62,7 @@ impl Limit {
                 HEADER_QUERY_REMAINING,
                 HEADER_QUERY_RESET,
             )
-            .map(|limits| Limit::Query(limits))
+            .map(Limit::Query)
             .ok()
         } else {
             let scope = response
@@ -108,7 +108,7 @@ impl Display for Limits {
 
 impl Limits {
     pub fn is_exceeded(&self) -> bool {
-        return self.remaining == 0 && self.reset > Utc::now();
+        self.remaining == 0 && self.reset > Utc::now()
     }
 
     fn from_headers(
@@ -116,24 +116,24 @@ impl Limits {
         header_limit: &str,
         header_remaining: &str,
         header_reset: &str,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, InvalidHeaderError> {
         Ok(Limits {
             limit: headers
                 .get(header_limit)
-                .and_then(|limit| Some(limit.to_str().unwrap()))
-                .and_then(|limit| Some(limit.parse::<u64>().unwrap()))
-                .ok_or_else(|| Error::InvalidLimitHeader)?,
+                .and_then(|limit| limit.to_str().ok())
+                .and_then(|limit| limit.parse::<u64>().ok())
+                .ok_or(InvalidHeaderError::Limit)?,
             remaining: headers
                 .get(header_remaining)
                 .and_then(|limit| limit.to_str().ok())
                 .and_then(|limit| limit.parse::<u64>().ok())
-                .ok_or_else(|| Error::InvalidRemainingHeader)?,
+                .ok_or(InvalidHeaderError::Remaining)?,
             reset: headers
                 .get(header_reset)
                 .and_then(|limit| limit.to_str().ok())
                 .and_then(|limit| limit.parse::<i64>().ok())
                 .map(|limit| Utc.timestamp(limit, 0))
-                .ok_or_else(|| Error::InvalidResetHeader)?,
+                .ok_or(InvalidHeaderError::Reset)?,
         })
     }
 }
