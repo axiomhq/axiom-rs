@@ -1,3 +1,4 @@
 /target
 Cargo.lock
 /.envrc
+/examples/target
