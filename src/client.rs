@@ -61,13 +61,6 @@ impl Client {
     pub async fn version(&self) -> String {
         env!("CARGO_PKG_VERSION").to_string()
     }
-
-    /// Make sure the client can properly authenticate against the configured
-    /// Axiom deployment.
-    pub async fn validate_credentials(&self) -> Result<()> {
-        self.users.current().await?;
-        Ok(())
-    }
 }
 
 /// This builder is used to create a new client.
