@@ -7,12 +7,14 @@ use reqwest::header;
 use serde::Serialize;
 use std::{
     convert::{TryFrom, TryInto},
+    fmt::Debug as FmtDebug,
     io::Write,
     result::Result as StdResult,
     time::Duration as StdDuration,
 };
 #[cfg(feature = "tokio")]
 use tokio::task::spawn_blocking;
+use tracing::instrument;
 
 use crate::{
     datasets::model::*,
@@ -33,9 +35,10 @@ impl Client {
     }
 
     /// Executes the given query specified using the Axiom Processing Language (APL).
+    #[instrument(skip(self, opts))]
     pub async fn apl_query<S, O>(&self, apl: S, opts: O) -> Result<AplQueryResult>
     where
-        S: Into<String>,
+        S: Into<String> + FmtDebug,
         O: Into<Option<AplOptions>>,
     {
         let (req, query_params) = match opts.into() {
@@ -82,10 +85,11 @@ impl Client {
     }
 
     /// Create a dataset with the given name and description.
+    #[instrument(skip(self))]
     pub async fn create<N, D>(&self, dataset_name: N, description: D) -> Result<Dataset>
     where
-        N: Into<String>,
-        D: Into<String>,
+        N: Into<String> + FmtDebug,
+        D: Into<String> + FmtDebug,
     {
         let req = DatasetCreateRequest {
             name: dataset_name.into(),
@@ -99,14 +103,22 @@ impl Client {
     }
 
     /// Delete the dataset with the given ID.
-    pub async fn delete<N: Into<String>>(&self, dataset_name: N) -> Result<()> {
+    #[instrument(skip(self))]
+    pub async fn delete<N>(&self, dataset_name: N) -> Result<()>
+    where
+        N: Into<String> + FmtDebug,
+    {
         self.http_client
             .delete(format!("/v1/datasets/{}", dataset_name.into()))
             .await
     }
 
     /// Get a dataset by its id.
-    pub async fn get<N: Into<String>>(&self, dataset_name: N) -> Result<Dataset> {
+    #[instrument(skip(self))]
+    pub async fn get<N>(&self, dataset_name: N) -> Result<Dataset>
+    where
+        N: Into<String> + FmtDebug,
+    {
         self.http_client
             .get(format!("/v1/datasets/{}", dataset_name.into()))
             .await?
@@ -115,7 +127,11 @@ impl Client {
     }
 
     /// Retrieve the information of the dataset identified by its id.
-    pub async fn info<N: Into<String>>(&self, dataset_name: N) -> Result<Info> {
+    #[instrument(skip(self))]
+    pub async fn info<N>(&self, dataset_name: N) -> Result<Info>
+    where
+        N: Into<String> + FmtDebug,
+    {
         self.http_client
             .get(format!("/v1/datasets/{}/info", dataset_name.into()))
             .await?
@@ -126,9 +142,10 @@ impl Client {
     /// Ingest events into the dataset identified by its id.
     /// Restrictions for field names (JSON object keys) can be reviewed here:
     /// <https://www.axiom.co/docs/usage/field-restrictions>.
+    #[instrument(skip(self, events))]
     pub async fn ingest<N, I, E>(&self, dataset_name: N, events: I) -> Result<IngestStatus>
     where
-        N: Into<String>,
+        N: Into<String> + FmtDebug,
         I: IntoIterator<Item = E>,
         E: Serialize,
     {
@@ -159,6 +176,7 @@ impl Client {
     /// Ingest data into the dataset identified by its id.
     /// Restrictions for field names (JSON object keys) can be reviewed here:
     /// <https://www.axiom.co/docs/usage/field-restrictions>.
+    #[instrument(skip(self, payload))]
     pub async fn ingest_raw<N, P>(
         &self,
         dataset_name: N,
@@ -167,7 +185,7 @@ impl Client {
         content_encoding: ContentEncoding,
     ) -> Result<IngestStatus>
     where
-        N: Into<String>,
+        N: Into<String> + FmtDebug,
         P: Into<Bytes>,
     {
         let mut headers = HeaderMap::new();
@@ -190,9 +208,10 @@ impl Client {
     /// with a backoff.
     /// Restrictions for field names (JSON object keys) can be reviewed here:
     /// <https://www.axiom.co/docs/usage/field-restrictions>.
+    #[instrument(skip(self, stream))]
     pub async fn ingest_stream<N, S, E>(&self, dataset_name: N, stream: S) -> Result<IngestStatus>
     where
-        N: Into<String>,
+        N: Into<String> + FmtDebug,
         S: Stream<Item = E> + Send + Sync + 'static,
         E: Serialize,
     {
@@ -206,14 +225,15 @@ impl Client {
         Ok(ingest_status)
     }
 
-    /// Like [`ingest_stream`], but takes a stream that contains results.
+    /// Like [`Client::ingest_stream`], but takes a stream that contains results.
+    #[instrument(skip(self, stream))]
     pub async fn try_ingest_stream<N, S, I, E>(
         &self,
         dataset_name: N,
         stream: S,
     ) -> Result<IngestStatus>
     where
-        N: Into<String>,
+        N: Into<String> + FmtDebug,
         S: Stream<Item = StdResult<I, E>> + Send + Sync + 'static,
         I: Serialize,
         E: std::error::Error + Send + Sync + 'static,
@@ -235,14 +255,16 @@ impl Client {
     }
 
     /// List all available datasets.
+    #[instrument(skip(self))]
     pub async fn list(&self) -> Result<Vec<Dataset>> {
         self.http_client.get("/v1/datasets").await?.json().await
     }
 
     /// Execute the given query on the dataset identified by its id.
+    #[instrument(skip(self, opts))]
     pub async fn query<N, O>(&self, dataset_name: N, query: Query, opts: O) -> Result<QueryResult>
     where
-        N: Into<String>,
+        N: Into<String> + FmtDebug,
         O: Into<Option<QueryOptions>>,
     {
         let path = format!(
@@ -273,10 +295,11 @@ impl Client {
     /// Older ones will be deleted from the dataset.
     /// The duration can either be a [`std::time::Duration`] or a
     /// [`chrono::Duration`].
+    #[instrument(skip(self))]
     pub async fn trim<N, D>(&self, dataset_name: N, duration: D) -> Result<TrimResult>
     where
-        N: Into<String>,
-        D: TryInto<Duration, Error = Error>,
+        N: Into<String> + FmtDebug,
+        D: TryInto<Duration, Error = Error> + FmtDebug,
     {
         let duration = duration.try_into()?;
         let req = TrimRequest::new(duration.into());
@@ -288,11 +311,11 @@ impl Client {
     }
 
     /// Update a dataset.
-    pub async fn update<N: Into<String>>(
-        &self,
-        dataset_name: N,
-        req: DatasetUpdateRequest,
-    ) -> Result<Dataset> {
+    #[instrument(skip(self))]
+    pub async fn update<N>(&self, dataset_name: N, req: DatasetUpdateRequest) -> Result<Dataset>
+    where
+        N: Into<String> + FmtDebug,
+    {
         self.http_client
             .put(format!("/v1/datasets/{}", dataset_name.into()), &req)
             .await?

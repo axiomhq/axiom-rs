@@ -1,4 +1,5 @@
 use crate::{error::Result, http, users::model::*};
+use tracing::instrument;
 
 /// Provides methods to work with Axiom datasets.
 #[derive(Clone)]
@@ -12,6 +13,7 @@ impl Client {
     }
 
     /// Retrieve the authenticated user.
+    #[instrument(skip(self))]
     pub async fn current(&self) -> Result<User> {
         self.http_client.get("/v1/user").await?.json().await
     }
