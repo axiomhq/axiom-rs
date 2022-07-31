@@ -206,6 +206,34 @@ impl Client {
         Ok(ingest_status)
     }
 
+    /// Like [`ingest_stream`], but takes a stream that contains results.
+    pub async fn try_ingest_stream<N, S, I, E>(
+        &self,
+        dataset_name: N,
+        stream: S,
+    ) -> Result<IngestStatus>
+    where
+        N: Into<String>,
+        S: Stream<Item = StdResult<I, E>> + Send + Sync + 'static,
+        I: Serialize,
+        E: std::error::Error + Send + Sync + 'static,
+    {
+        let dataset_name = dataset_name.into();
+        let mut chunks = Box::pin(stream.chunks(1000));
+        let mut ingest_status = IngestStatus::default();
+        while let Some(events) = chunks.next().await {
+            let events: StdResult<Vec<I>, E> = events.into_iter().collect();
+            match events {
+                Ok(events) => {
+                    let new_ingest_status = self.ingest(dataset_name.clone(), events).await?;
+                    ingest_status = ingest_status + new_ingest_status
+                }
+                Err(e) => return Err(Error::IngestStreamError(Box::new(e))),
+            }
+        }
+        Ok(ingest_status)
+    }
+
     /// List all available datasets.
     pub async fn list(&self) -> Result<Vec<Dataset>> {
         self.http_client.get("/v1/datasets").await?.json().await
