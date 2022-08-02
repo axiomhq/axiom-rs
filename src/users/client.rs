@@ -13,6 +13,6 @@ impl Client {
 
     /// Retrieve the authenticated user.
     pub async fn current(&self) -> Result<AuthenticatedUser> {
-        self.http_client.get("/user").await?.json().await
+        self.http_client.get("/v1/user").await?.json().await
     }
 }

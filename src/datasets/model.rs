@@ -190,7 +190,7 @@ pub struct TrimResult {
 }
 
 /// Returned on event ingestion operation.
-#[derive(Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct IngestStatus {
     /// Amount of events that have been ingested.

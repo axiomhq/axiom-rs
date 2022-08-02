@@ -27,8 +27,9 @@ flate2 = "1"
 http = "0.2"
 backoff = { version = "0.4", features = ["futures"] }
 futures = "0.3"
-tokio = { version = "1", optional = true, features = ["rt"] }
+tokio = { version = "1", optional = true, features = ["rt", "sync"] }
 async-std = { version = "1", optional = true, features = ["tokio1"] }
+url = "2"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
@@ -37,6 +38,7 @@ serde_test = "1"
 test-context = "0.1"
 async-trait = "0.1"
 futures-util = "0.3"
+httpmock = "0.6"
 
 [features]
 default = ["tokio", "default-tls"]

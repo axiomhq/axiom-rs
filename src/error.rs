@@ -4,6 +4,8 @@ use serde::Deserialize;
 use std::fmt;
 use thiserror::Error;
 
+use crate::limits::Limits;
+
 /// A `Result` alias where the `Err` case is `axiom::Error`.
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -40,6 +42,10 @@ pub enum Error {
     #[cfg(feature = "tokio")]
     #[error("Failed to join thread: {0}")]
     JoinError(tokio::task::JoinError),
+    #[error("Rate limit exceeded: {0}")]
+    RateLimitExceeded(Limits),
+    #[error("Invalid URL: {0}")]
+    InvalidUrl(url::ParseError),
 }
 
 /// This is the manual implementation. We don't really care if the error is
