@@ -61,6 +61,7 @@ impl Client {
         let http_client = reqwest::Client::builder()
             .user_agent(USER_AGENT)
             .default_headers(default_headers)
+            .timeout(Duration::from_secs(10))
             .build()
             .map_err(Error::HttpClientSetup)?;
 
