@@ -132,8 +132,11 @@ impl Client {
         I: IntoIterator<Item = E>,
         E: Serialize,
     {
-        let events: Vec<E> = events.into_iter().collect();
-        let json_payload = serde_json::to_vec(&events)?;
+        let json_lines: Result<Vec<Vec<u8>>> = events
+            .into_iter()
+            .map(|event| serde_json::to_vec(&event).map_err(Error::Serialize))
+            .collect();
+        let json_payload = json_lines?.join(&b"\n"[..]);
         let payload = spawn_blocking(move || {
             let mut gzip_payload = GzEncoder::new(Vec::new(), Compression::default());
             gzip_payload.write_all(&json_payload)?;
@@ -147,7 +150,7 @@ impl Client {
         self.ingest_raw(
             dataset_name,
             payload,
-            ContentType::Json,
+            ContentType::NdJson,
             ContentEncoding::Gzip,
         )
         .await
