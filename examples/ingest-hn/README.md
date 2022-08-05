@@ -1,4 +1,4 @@
-# hn-ingest
+# ingest-hn
 
 This example ingests all HN posts up into a dataset.
 
