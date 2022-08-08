@@ -61,13 +61,6 @@ impl Client {
     pub async fn version(&self) -> String {
         env!("CARGO_PKG_VERSION").to_string()
     }
-
-    /// Make sure the client can properly authenticate against the configured
-    /// Axiom deployment.
-    pub async fn validate_credentials(&self) -> Result<()> {
-        self.users.current().await?;
-        Ok(())
-    }
 }
 
 /// This builder is used to create a new client.
@@ -121,38 +114,29 @@ impl Builder {
     pub fn build(self) -> Result<Client> {
         let env_fallback = self.env_fallback;
 
-        let token = self
-            .token
-            .or_else(|| {
-                if env_fallback {
-                    env::var("AXIOM_TOKEN").ok()
-                } else {
-                    None
-                }
-            })
-            .ok_or(Error::MissingToken)?;
+        let mut token = self.token.unwrap_or_default();
+        if token.is_empty() && env_fallback {
+            token = env::var("AXIOM_TOKEN").unwrap_or_default();
+        }
+        if token.is_empty() {
+            return Err(Error::MissingToken);
+        }
 
-        let url = self
-            .url
-            .or_else(|| {
-                if env_fallback {
-                    env::var("AXIOM_URL").ok()
-                } else {
-                    None
-                }
-            })
-            .unwrap_or_else(|| CLOUD_URL.to_string());
+        let mut url = self.url.unwrap_or_default();
+        if url.is_empty() && env_fallback {
+            url = env::var("AXIOM_URL").unwrap_or_default();
+        }
+        if url.is_empty() {
+            url = CLOUD_URL.to_string();
+        }
 
-        let org_id = self.org_id.or_else(|| {
-            if env_fallback {
-                env::var("AXIOM_ORG_ID").ok()
-            } else {
-                None
-            }
-        });
+        let mut org_id = self.org_id.unwrap_or_default();
+        if org_id.is_empty() && env_fallback {
+            org_id = env::var("AXIOM_ORG_ID").unwrap_or_default();
+        };
 
         // On Cloud you need an Org ID for Personal Tokens.
-        if url == CLOUD_URL && org_id.is_none() && is_personal_token(&token) {
+        if url == CLOUD_URL && org_id.is_empty() && is_personal_token(&token) {
             return Err(Error::MissingOrgId);
         }
 

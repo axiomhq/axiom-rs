@@ -46,6 +46,8 @@ pub enum Error {
     RateLimitExceeded(Limits),
     #[error("Invalid URL: {0}")]
     InvalidUrl(url::ParseError),
+    #[error("Error in ingest stream: {0}")]
+    IngestStreamError(Box<dyn std::error::Error + Send>),
 }
 
 /// This is the manual implementation. We don't really care if the error is

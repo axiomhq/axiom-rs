@@ -273,6 +273,7 @@ pub(crate) struct AplQueryParams {
 }
 
 /// The optional parameters to APL query methods.
+#[derive(Debug)]
 pub struct AplOptions {
     /// The start time of the query.
     pub start_time: Option<DateTime<Utc>>,
