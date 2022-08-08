@@ -1,9 +1,9 @@
 [package]
 name = "axiom-rs"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["Arne Bahlo <arne@axiom.co>"]
 edition = "2018"
-rust-version = "1.54"
+rust-version = "1.60"
 license = "MIT OR Apache-2.0"
 description = "A Rust SDK for Axiom"
 homepage = "https://axiom.co"
