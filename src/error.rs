@@ -48,6 +48,10 @@ pub enum Error {
     InvalidUrl(url::ParseError),
     #[error("Error in ingest stream: {0}")]
     IngestStreamError(Box<dyn std::error::Error + Send>),
+    #[error("Invalid content type: {0}")]
+    InvalidContentType(String),
+    #[error("Invalid content encoding: {0}")]
+    InvalidContentEncoding(String),
 }
 
 /// This is the manual implementation. We don't really care if the error is

@@ -2,7 +2,7 @@ use chrono::{DateTime, Duration, Utc};
 use http::header::HeaderValue;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{
-    de::{self, Error, Unexpected, Visitor},
+    de::{self, Error as SerdeError, Unexpected, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
 };
 use serde_json::value::Value as JsonValue;
@@ -11,6 +11,7 @@ use std::{
     convert::TryFrom,
     fmt::{self, Display},
     ops::Add,
+    str::FromStr,
 };
 use thiserror::Error;
 
@@ -50,6 +51,19 @@ impl Display for ContentType {
     }
 }
 
+impl FromStr for ContentType {
+    type Err = crate::error::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "application/json" => Ok(ContentType::Json),
+            "application/x-ndjson" => Ok(ContentType::NdJson),
+            "text/csv" => Ok(ContentType::Csv),
+            _ => Err(crate::error::Error::InvalidContentType(s.to_string())),
+        }
+    }
+}
+
 impl From<ContentType> for HeaderValue {
     fn from(content_type: ContentType) -> Self {
         HeaderValue::from_static(content_type.as_str())
@@ -81,6 +95,19 @@ impl ContentEncoding {
 impl Display for ContentEncoding {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+impl FromStr for ContentEncoding {
+    type Err = crate::error::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "" => Ok(ContentEncoding::Identity),
+            "gzip" => Ok(ContentEncoding::Gzip),
+            "zstd" => Ok(ContentEncoding::Zstd),
+            _ => Err(crate::error::Error::InvalidContentEncoding(s.to_string())),
+        }
     }
 }
 
