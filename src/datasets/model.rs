@@ -822,6 +822,10 @@ pub struct QueryStatus {
     /// Messages associated with the query.
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub messages: Vec<QueryMessage>,
+    /// Row id of the newest row, as seen server side.
+    pub max_cursor: Option<String>,
+    /// Row id of the oldest row, as seen server side.
+    pub min_cursor: Option<String>,
 }
 
 /// The cache status of the query.
