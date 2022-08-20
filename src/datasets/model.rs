@@ -482,6 +482,7 @@ pub struct Projection {
 pub enum AggregationOp {
     Count,
     CountDistinct,
+    Set,
 
     // Only works for numbers.
     Sum,
@@ -491,6 +492,15 @@ pub enum AggregationOp {
     Topk,
     Percentiles,
     Histogram,
+    StandardDeviation,
+    Variance,
+    ArgMin,
+    ArgMax,
+
+    // Read-only. Not to be used for query requests. Only in place to support
+    // the APL query result.
+    CountIf,
+    DistinctIf,
 }
 
 impl Serialize for AggregationOp {
@@ -501,6 +511,7 @@ impl Serialize for AggregationOp {
         serializer.serialize_str(match self {
             AggregationOp::Count => "count",
             AggregationOp::CountDistinct => "distinct",
+            AggregationOp::Set => "set",
             AggregationOp::Sum => "sum",
             AggregationOp::Avg => "avg",
             AggregationOp::Min => "min",
@@ -508,6 +519,12 @@ impl Serialize for AggregationOp {
             AggregationOp::Topk => "topk",
             AggregationOp::Percentiles => "percentiles",
             AggregationOp::Histogram => "histogram",
+            AggregationOp::StandardDeviation => "stdev",
+            AggregationOp::Variance => "variance",
+            AggregationOp::ArgMin => "argmin",
+            AggregationOp::ArgMax => "argmax",
+            AggregationOp::CountIf => "countif",
+            AggregationOp::DistinctIf => "distinctif",
         })
     }
 }
@@ -528,6 +545,7 @@ impl<'de> Visitor<'de> for AggregationOpVisitor {
         match s {
             "count" => Ok(AggregationOp::Count),
             "distinct" => Ok(AggregationOp::CountDistinct),
+            "set" => Ok(AggregationOp::Set),
             "sum" => Ok(AggregationOp::Sum),
             "avg" => Ok(AggregationOp::Avg),
             "min" => Ok(AggregationOp::Min),
@@ -535,6 +553,12 @@ impl<'de> Visitor<'de> for AggregationOpVisitor {
             "topk" => Ok(AggregationOp::Topk),
             "percentiles" => Ok(AggregationOp::Percentiles),
             "histogram" => Ok(AggregationOp::Histogram),
+            "stdev" => Ok(AggregationOp::StandardDeviation),
+            "variance" => Ok(AggregationOp::Variance),
+            "argmin" => Ok(AggregationOp::ArgMin),
+            "argmax" => Ok(AggregationOp::ArgMax),
+            "countif" => Ok(AggregationOp::CountIf),
+            "distinctif" => Ok(AggregationOp::DistinctIf),
             _ => Err(de::Error::invalid_value(Unexpected::Str(s), &self)),
         }
     }
