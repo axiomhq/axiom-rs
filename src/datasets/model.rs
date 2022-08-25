@@ -134,7 +134,7 @@ pub struct Dataset {
 }
 
 /// A field of an Axiom dataset.
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct Field {
     /// Name is the unique name of the field.
     pub name: String,
@@ -281,7 +281,7 @@ pub struct DatasetUpdateRequest {
 
 /// A query that gets executed on a dataset.
 /// If you're looking for the analytics, check out [`Query`].
-#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Default, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AplQuery {
     pub apl: String,
