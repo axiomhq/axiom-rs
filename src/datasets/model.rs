@@ -502,6 +502,8 @@ pub enum AggregationOp {
     // the APL query result.
     CountIf,
     DistinctIf,
+
+    Unknown(String),
 }
 
 impl Serialize for AggregationOp {
@@ -510,23 +512,24 @@ impl Serialize for AggregationOp {
         S: Serializer,
     {
         serializer.serialize_str(match self {
-            AggregationOp::Count => "count",
-            AggregationOp::CountDistinct => "distinct",
-            AggregationOp::MakeSet => "makeset",
-            AggregationOp::MakeSetIf => "makesetif",
-            AggregationOp::Sum => "sum",
-            AggregationOp::Avg => "avg",
-            AggregationOp::Min => "min",
-            AggregationOp::Max => "max",
-            AggregationOp::Topk => "topk",
-            AggregationOp::Percentiles => "percentiles",
-            AggregationOp::Histogram => "histogram",
-            AggregationOp::StandardDeviation => "stdev",
-            AggregationOp::Variance => "variance",
-            AggregationOp::ArgMin => "argmin",
-            AggregationOp::ArgMax => "argmax",
-            AggregationOp::CountIf => "countif",
-            AggregationOp::DistinctIf => "distinctif",
+            Self::Count => "count",
+            Self::CountDistinct => "distinct",
+            Self::MakeSet => "makeset",
+            Self::MakeSetIf => "makesetif",
+            Self::Sum => "sum",
+            Self::Avg => "avg",
+            Self::Min => "min",
+            Self::Max => "max",
+            Self::Topk => "topk",
+            Self::Percentiles => "percentiles",
+            Self::Histogram => "histogram",
+            Self::StandardDeviation => "stdev",
+            Self::Variance => "variance",
+            Self::ArgMin => "argmin",
+            Self::ArgMax => "argmax",
+            Self::CountIf => "countif",
+            Self::DistinctIf => "distinctif",
+            Self::Unknown(ref s) => s,
         })
     }
 }
@@ -545,24 +548,24 @@ impl<'de> Visitor<'de> for AggregationOpVisitor {
         E: de::Error,
     {
         match s {
-            "count" => Ok(AggregationOp::Count),
-            "distinct" => Ok(AggregationOp::CountDistinct),
-            "makeset" => Ok(AggregationOp::MakeSet),
-            "makesetif" => Ok(AggregationOp::MakeSetIf),
-            "sum" => Ok(AggregationOp::Sum),
-            "avg" => Ok(AggregationOp::Avg),
-            "min" => Ok(AggregationOp::Min),
-            "max" => Ok(AggregationOp::Max),
-            "topk" => Ok(AggregationOp::Topk),
-            "percentiles" => Ok(AggregationOp::Percentiles),
-            "histogram" => Ok(AggregationOp::Histogram),
-            "stdev" => Ok(AggregationOp::StandardDeviation),
-            "variance" => Ok(AggregationOp::Variance),
-            "argmin" => Ok(AggregationOp::ArgMin),
-            "argmax" => Ok(AggregationOp::ArgMax),
-            "countif" => Ok(AggregationOp::CountIf),
-            "distinctif" => Ok(AggregationOp::DistinctIf),
-            _ => Err(de::Error::invalid_value(Unexpected::Str(s), &self)),
+            "count" => Ok(Self::Value::Count),
+            "distinct" => Ok(Self::Value::CountDistinct),
+            "makeset" => Ok(Self::Value::MakeSet),
+            "makesetif" => Ok(Self::Value::MakeSetIf),
+            "sum" => Ok(Self::Value::Sum),
+            "avg" => Ok(Self::Value::Avg),
+            "min" => Ok(Self::Value::Min),
+            "max" => Ok(Self::Value::Max),
+            "topk" => Ok(Self::Value::Topk),
+            "percentiles" => Ok(Self::Value::Percentiles),
+            "histogram" => Ok(Self::Value::Histogram),
+            "stdev" => Ok(Self::Value::StandardDeviation),
+            "variance" => Ok(Self::Value::Variance),
+            "argmin" => Ok(Self::Value::ArgMin),
+            "argmax" => Ok(Self::Value::ArgMax),
+            "countif" => Ok(Self::Value::CountIf),
+            "distinctif" => Ok(Self::Value::DistinctIf),
+            aggregation => Ok(Self::Value::Unknown(aggregation.to_string())),
         }
     }
 }
