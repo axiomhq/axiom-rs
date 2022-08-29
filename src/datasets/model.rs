@@ -482,7 +482,8 @@ pub struct Projection {
 pub enum AggregationOp {
     Count,
     CountDistinct,
-    Set,
+    MakeSet,
+    MakeSetIf,
 
     // Only works for numbers.
     Sum,
@@ -511,7 +512,8 @@ impl Serialize for AggregationOp {
         serializer.serialize_str(match self {
             AggregationOp::Count => "count",
             AggregationOp::CountDistinct => "distinct",
-            AggregationOp::Set => "set",
+            AggregationOp::MakeSet => "makeset",
+            AggregationOp::MakeSetIf => "makesetif",
             AggregationOp::Sum => "sum",
             AggregationOp::Avg => "avg",
             AggregationOp::Min => "min",
@@ -545,7 +547,8 @@ impl<'de> Visitor<'de> for AggregationOpVisitor {
         match s {
             "count" => Ok(AggregationOp::Count),
             "distinct" => Ok(AggregationOp::CountDistinct),
-            "set" => Ok(AggregationOp::Set),
+            "makeset" => Ok(AggregationOp::MakeSet),
+            "makesetif" => Ok(AggregationOp::MakeSetIf),
             "sum" => Ok(AggregationOp::Sum),
             "avg" => Ok(AggregationOp::Avg),
             "min" => Ok(AggregationOp::Min),
