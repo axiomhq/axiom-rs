@@ -465,6 +465,8 @@ mod test {
                     min_block_time: Utc::now() - Duration::seconds(1),
                     max_block_time: Utc::now(),
                     messages: vec![],
+                    max_cursor: None,
+                    min_cursor: None,
                 },
                 matches: vec![],
                 buckets: Timeseries {

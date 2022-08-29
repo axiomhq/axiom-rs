@@ -134,7 +134,7 @@ pub struct Dataset {
 }
 
 /// A field of an Axiom dataset.
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct Field {
     /// Name is the unique name of the field.
     pub name: String,
@@ -281,7 +281,7 @@ pub struct DatasetUpdateRequest {
 
 /// A query that gets executed on a dataset.
 /// If you're looking for the analytics, check out [`Query`].
-#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Default, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AplQuery {
     pub apl: String,
@@ -482,6 +482,8 @@ pub struct Projection {
 pub enum AggregationOp {
     Count,
     CountDistinct,
+    MakeSet,
+    MakeSetIf,
 
     // Only works for numbers.
     Sum,
@@ -491,6 +493,17 @@ pub enum AggregationOp {
     Topk,
     Percentiles,
     Histogram,
+    StandardDeviation,
+    Variance,
+    ArgMin,
+    ArgMax,
+
+    // Read-only. Not to be used for query requests. Only in place to support
+    // the APL query result.
+    CountIf,
+    DistinctIf,
+
+    Unknown(String),
 }
 
 impl Serialize for AggregationOp {
@@ -499,15 +512,24 @@ impl Serialize for AggregationOp {
         S: Serializer,
     {
         serializer.serialize_str(match self {
-            AggregationOp::Count => "count",
-            AggregationOp::CountDistinct => "distinct",
-            AggregationOp::Sum => "sum",
-            AggregationOp::Avg => "avg",
-            AggregationOp::Min => "min",
-            AggregationOp::Max => "max",
-            AggregationOp::Topk => "topk",
-            AggregationOp::Percentiles => "percentiles",
-            AggregationOp::Histogram => "histogram",
+            Self::Count => "count",
+            Self::CountDistinct => "distinct",
+            Self::MakeSet => "makeset",
+            Self::MakeSetIf => "makesetif",
+            Self::Sum => "sum",
+            Self::Avg => "avg",
+            Self::Min => "min",
+            Self::Max => "max",
+            Self::Topk => "topk",
+            Self::Percentiles => "percentiles",
+            Self::Histogram => "histogram",
+            Self::StandardDeviation => "stdev",
+            Self::Variance => "variance",
+            Self::ArgMin => "argmin",
+            Self::ArgMax => "argmax",
+            Self::CountIf => "countif",
+            Self::DistinctIf => "distinctif",
+            Self::Unknown(ref s) => s,
         })
     }
 }
@@ -526,16 +548,24 @@ impl<'de> Visitor<'de> for AggregationOpVisitor {
         E: de::Error,
     {
         match s {
-            "count" => Ok(AggregationOp::Count),
-            "distinct" => Ok(AggregationOp::CountDistinct),
-            "sum" => Ok(AggregationOp::Sum),
-            "avg" => Ok(AggregationOp::Avg),
-            "min" => Ok(AggregationOp::Min),
-            "max" => Ok(AggregationOp::Max),
-            "topk" => Ok(AggregationOp::Topk),
-            "percentiles" => Ok(AggregationOp::Percentiles),
-            "histogram" => Ok(AggregationOp::Histogram),
-            _ => Err(de::Error::invalid_value(Unexpected::Str(s), &self)),
+            "count" => Ok(Self::Value::Count),
+            "distinct" => Ok(Self::Value::CountDistinct),
+            "makeset" => Ok(Self::Value::MakeSet),
+            "makesetif" => Ok(Self::Value::MakeSetIf),
+            "sum" => Ok(Self::Value::Sum),
+            "avg" => Ok(Self::Value::Avg),
+            "min" => Ok(Self::Value::Min),
+            "max" => Ok(Self::Value::Max),
+            "topk" => Ok(Self::Value::Topk),
+            "percentiles" => Ok(Self::Value::Percentiles),
+            "histogram" => Ok(Self::Value::Histogram),
+            "stdev" => Ok(Self::Value::StandardDeviation),
+            "variance" => Ok(Self::Value::Variance),
+            "argmin" => Ok(Self::Value::ArgMin),
+            "argmax" => Ok(Self::Value::ArgMax),
+            "countif" => Ok(Self::Value::CountIf),
+            "distinctif" => Ok(Self::Value::DistinctIf),
+            aggregation => Ok(Self::Value::Unknown(aggregation.to_string())),
         }
     }
 }
@@ -798,6 +828,10 @@ pub struct QueryStatus {
     /// Messages associated with the query.
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub messages: Vec<QueryMessage>,
+    /// Row id of the newest row, as seen server side.
+    pub max_cursor: Option<String>,
+    /// Row id of the oldest row, as seen server side.
+    pub min_cursor: Option<String>,
 }
 
 /// The cache status of the query.
