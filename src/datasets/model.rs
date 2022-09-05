@@ -763,17 +763,14 @@ pub struct QueryOptions {
 /// The result of an APL query. It embeds the APL request in the result it
 /// created.
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct AplQueryResult {
     /// The query request.
     pub request: Query,
     // NOTE: The following is copied from QueryResult. Maybe we should have a macro?
     /// The status of the query result.
     pub status: QueryStatus,
-    #[serde(
-        default,
-        alias = "datasetNames",
-        deserialize_with = "deserialize_null_default"
-    )]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub dataset_names: Vec<String>,
     /// The events that matched the query.
     #[serde(default, deserialize_with = "deserialize_null_default")]
