@@ -769,7 +769,11 @@ pub struct AplQueryResult {
     // NOTE: The following is copied from QueryResult. Maybe we should have a macro?
     /// The status of the query result.
     pub status: QueryStatus,
-    #[serde(default, alias="datasetNames", deserialize_with = "deserialize_null_default")]
+    #[serde(
+        default,
+        alias = "datasetNames",
+        deserialize_with = "deserialize_null_default"
+    )]
     pub dataset_names: Vec<String>,
     /// The events that matched the query.
     #[serde(default, deserialize_with = "deserialize_null_default")]

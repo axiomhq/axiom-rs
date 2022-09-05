@@ -468,6 +468,7 @@ mod test {
                     max_cursor: None,
                     min_cursor: None,
                 },
+                dataset_names: vec![],
                 matches: vec![],
                 buckets: Timeseries {
                     series: vec![],
