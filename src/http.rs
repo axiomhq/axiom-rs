@@ -89,8 +89,6 @@ impl Client {
             .join(path.as_ref().trim_start_matches('/'))
             .map_err(Error::InvalidUrl)?;
 
-        self.check_limits(url.path()).await?;
-
         let headers = headers.into();
         let backoff = ExponentialBackoffBuilder::new()
             .with_initial_interval(Duration::from_millis(500)) // first retry after 500ms
@@ -126,25 +124,6 @@ impl Client {
         self.update_limits(&res.limits).await;
 
         Ok(res)
-    }
-
-    async fn check_limits(&self, path: &str) -> Result<()> {
-        if path.ends_with("/ingest") {
-            let limits = self.ingest_limit.lock().await;
-            if let Some(limits) = limits.as_ref() {
-                if limits.is_exceeded() {
-                    return Err(Error::RateLimitExceeded(limits.clone()));
-                }
-            }
-        } else if path.ends_with("/query") || path.ends_with("/_apl") {
-            let limits = self.query_limit.lock().await;
-            if let Some(limits) = limits.as_ref() {
-                if limits.is_exceeded() {
-                    return Err(Error::RateLimitExceeded(limits.clone()));
-                }
-            }
-        }
-        Ok(())
     }
 
     async fn update_limits(&self, limit: &Option<Limit>) {
@@ -295,10 +274,7 @@ mod test {
     use httpmock::prelude::*;
     use serde_json::json;
 
-    use crate::{
-        datasets::{AplQueryResult, CacheStatus, IngestStatus, Query, QueryStatus, Timeseries},
-        limits, Client, Error,
-    };
+    use crate::{limits, Client, Error};
 
     #[tokio::test]
     async fn test_ingest_limit_exceeded() -> Result<(), Box<dyn std::error::Error>> {
@@ -342,71 +318,6 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_ingest_limit_exceeded_shortcircuit() -> Result<(), Box<dyn std::error::Error>> {
-        let expires_after = Duration::seconds(1);
-        let tomorrow = Utc::now() + expires_after;
-
-        let server = MockServer::start();
-        let rate_mock = server.mock(|when, then| {
-            let ingest_status = IngestStatus {
-                ingested: 1,
-                failed: 0,
-                failures: vec![],
-                processed_bytes: 32,
-                blocks_created: 1,
-                wal_length: 42,
-            };
-            when.method(POST).path("/api/v1/datasets/test/ingest");
-            then.status(200)
-                .json_body(serde_json::to_value(ingest_status).unwrap())
-                .header(limits::HEADER_INGEST_LIMIT, "42")
-                .header(limits::HEADER_INGEST_REMAINING, "0")
-                .header(
-                    limits::HEADER_INGEST_RESET,
-                    format!("{}", tomorrow.timestamp()),
-                );
-        });
-
-        let client = Client::builder()
-            .no_env()
-            .with_url(server.base_url())
-            .with_token("xapt-nope")
-            .build()?;
-
-        // First request should be ok, but the rate limit should be saved on the
-        // client.
-        client
-            .datasets
-            .ingest("test", vec![json!({"foo": "bar"})])
-            .await?;
-
-        // Second request should abort early due to saved rate limit.
-        match client
-            .datasets
-            .ingest("test", vec![json!({"foo": "bar"})])
-            .await
-        {
-            Err(Error::RateLimitExceeded(limits)) => {
-                assert_eq!(limits.limit, 42);
-                assert_eq!(limits.remaining, 0);
-                assert_eq!(limits.reset.timestamp(), tomorrow.timestamp());
-            }
-            res => panic!("Expected ingest limit error, got {:?}", res),
-        };
-
-        // After a second, the rate limit should be reset and we should be able
-        // to do another request.
-        tokio::time::sleep(expires_after.to_std()?).await;
-        client
-            .datasets
-            .ingest("test", vec![json!({"foo": "bar"})])
-            .await?;
-
-        rate_mock.assert_hits_async(2).await;
-        Ok(())
-    }
-
-    #[tokio::test]
     async fn test_query_limit_exceeded() -> Result<(), Box<dyn std::error::Error>> {
         let expires_after = Duration::seconds(1);
         let tomorrow = Utc::now() + expires_after;
@@ -440,79 +351,6 @@ mod test {
         };
 
         rate_mock.assert_hits_async(1).await;
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_query_limit_exceeded_shortcircuit() -> Result<(), Box<dyn std::error::Error>> {
-        let expires_after = Duration::seconds(1);
-        let tomorrow = Utc::now() + expires_after;
-
-        let server = MockServer::start();
-        let rate_mock = server.mock(|when, then| {
-            let query_result = AplQueryResult {
-                request: Query::default(),
-                status: QueryStatus {
-                    elapsed_time: 0,
-                    blocks_examined: 0,
-                    rows_examined: 0,
-                    rows_matched: 0,
-                    num_groups: 0,
-                    is_partial: false,
-                    continuation_token: None,
-                    is_estimate: false,
-                    cache_status: CacheStatus::Miss,
-                    min_block_time: Utc::now() - Duration::seconds(1),
-                    max_block_time: Utc::now(),
-                    messages: vec![],
-                    max_cursor: None,
-                    min_cursor: None,
-                },
-                dataset_names: vec![],
-                matches: vec![],
-                buckets: Timeseries {
-                    series: vec![],
-                    totals: vec![],
-                },
-                saved_query_id: None,
-            };
-            when.method(POST).path("/api/v1/datasets/_apl");
-            then.status(200)
-                .json_body(serde_json::to_value(query_result).unwrap())
-                .header(limits::HEADER_QUERY_LIMIT, "42")
-                .header(limits::HEADER_QUERY_REMAINING, "0")
-                .header(
-                    limits::HEADER_QUERY_RESET,
-                    format!("{}", tomorrow.timestamp()),
-                );
-        });
-
-        let client = Client::builder()
-            .no_env()
-            .with_url(server.base_url())
-            .with_token("xapt-nope")
-            .build()?;
-
-        // First request should be ok, but the rate limit should be saved on the
-        // client.
-        client.datasets.apl_query("test | count", None).await?;
-
-        // Second request should abort early due to saved rate limit.
-        match client.datasets.apl_query("test | count", None).await {
-            Err(Error::RateLimitExceeded(limits)) => {
-                assert_eq!(limits.limit, 42);
-                assert_eq!(limits.remaining, 0);
-                assert_eq!(limits.reset.timestamp(), tomorrow.timestamp());
-            }
-            res => panic!("Expected ingest limit error, got {:?}", res),
-        };
-
-        // After a second, the rate limit should be reset and we should be able
-        // to do another request.
-        tokio::time::sleep(expires_after.to_std()?).await;
-        client.datasets.apl_query("test | count", None).await?;
-
-        rate_mock.assert_hits_async(2).await;
         Ok(())
     }
 
