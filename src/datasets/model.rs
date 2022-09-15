@@ -212,6 +212,10 @@ impl TrimRequest {
 #[derive(Deserialize, Debug)]
 pub struct TrimResult {
     /// The amount of blocks deleted by the trim operation.
+    #[deprecated(
+        since = "0.4.0",
+        note = "This field is deprecated and will be removed in a future version."
+    )]
     #[serde(rename = "numDeleted")]
     pub blocks_deleted: u64,
 }
