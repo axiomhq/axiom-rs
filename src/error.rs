@@ -47,7 +47,7 @@ pub enum Error {
     #[error("Invalid URL: {0}")]
     InvalidUrl(url::ParseError),
     #[error("Error in ingest stream: {0}")]
-    IngestStreamError(Box<dyn std::error::Error + Send>),
+    IngestStreamError(Box<dyn std::error::Error + Send + Sync>),
     #[error("Invalid content type: {0}")]
     InvalidContentType(String),
     #[error("Invalid content encoding: {0}")]
