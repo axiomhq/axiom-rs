@@ -2,7 +2,7 @@ use crate::{error::Result, http, users::model::*};
 use tracing::instrument;
 
 /// Provides methods to work with Axiom datasets.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Client {
     http_client: http::Client,
 }
