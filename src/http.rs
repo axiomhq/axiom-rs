@@ -19,7 +19,7 @@ static USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_V
 
 /// Client is a wrapper around reqwest::Client which provides automatically
 /// prepending the base url.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub(crate) struct Client {
     base_url: Url,
     inner: reqwest::Client,

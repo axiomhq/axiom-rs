@@ -24,7 +24,7 @@ use crate::{
 
 /// Provides methods to work with Axiom datasets, including ingesting and
 /// querying.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Client {
     http_client: http::Client,
 }
