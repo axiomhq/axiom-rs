@@ -14,7 +14,7 @@ Add the following to your Cargo.toml:
 
 ```toml
 [dependencies]
-axiom-rs = "0.4"
+axiom-rs = "0.5"
 ```
 
 ## Get started
@@ -24,7 +24,7 @@ could look like this:
 
 ```toml
 [dependencies]
-axiom-rs = "0.4"
+axiom-rs = "0.5"
 tokio = "1"
 ```
 
@@ -36,7 +36,7 @@ features:
 
 ```toml
 [dependencies] 
-axiom-rs = { version = "0.4", default-features = false, features = ["async-std"] }
+axiom-rs = { version = "0.5", default-features = false, features = ["async-std"] }
 async-std = "1"
 ```
 
