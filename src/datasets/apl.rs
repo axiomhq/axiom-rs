@@ -58,6 +58,19 @@ impl AplBuilder<Populated> {
         self
     }
 
+    pub fn where_eq<F, V>(mut self, field: F, value: V) -> AplBuilder<Populated>
+    where
+        F: Into<String>,
+        V: Into<String>,
+    {
+        self.state.actions.push(AplAction::Where {
+            field: field.into(),
+            op: "==".to_string(),
+            value: value.into(),
+        });
+        self
+    }
+
     pub fn count(mut self) -> AplBuilder<Populated> {
         self.state.actions.push(AplAction::Count);
         self
@@ -122,7 +135,7 @@ mod tests {
     fn test_builder_advanced() {
         let apl = builder()
             .dataset("foo")
-            .where_("foo", "==", "bar")
+            .where_eq("foo", "bar")
             .count()
             .project(vec!["foo"])
             .summarize("count()", "bin_auto(_time)")
