@@ -26,7 +26,16 @@ pub enum TabularOperator {
     },
     Count,
     Project {
+        exprs: Vec<String>,
+    },
+    ProjectKeep {
         fields: Vec<String>,
+    },
+    ProjectAway {
+        fields: Vec<String>,
+    },
+    Extend {
+        exprs: Vec<String>,
     },
     Summarize {
         aggregation: String,
@@ -156,6 +165,21 @@ macro_rules! or_fn(
 );
 
 pub trait TabularOperators: WithTabularOperators + Sized {
+    fn extend<E>(self, exprs: Vec<E>) -> AplBuilder<Populated>
+    where
+        E: Into<String>,
+    {
+        let (dataset_name, mut tabular_operators) = self.into_parts();
+        let exprs = exprs.into_iter().map(|expr| expr.into()).collect();
+        tabular_operators.push(TabularOperator::Extend { exprs });
+        AplBuilder {
+            state: Populated {
+                dataset_name,
+                tabular_operators,
+            },
+        }
+    }
+
     fn where_raw<L, O, R>(self, left: L, op: O, right: R) -> AplBuilder<WhereClause>
     where
         L: Into<String>,
@@ -194,13 +218,43 @@ pub trait TabularOperators: WithTabularOperators + Sized {
         }
     }
 
-    fn project<S>(mut self, fields: Vec<S>) -> Self
+    fn project<S>(mut self, exprs: Vec<S>) -> Self
     where
         S: Into<String>,
     {
-        let fields = fields.into_iter().map(|f| f.into()).collect();
-        self.push_tabular_operator(TabularOperator::Project { fields });
+        let exprs = exprs.into_iter().map(|f| f.into()).collect();
+        self.push_tabular_operator(TabularOperator::Project { exprs });
         self
+    }
+
+    fn project_away<F>(self, fields: Vec<F>) -> AplBuilder<Populated>
+    where
+        F: Into<String>,
+    {
+        let (dataset_name, mut tabular_operators) = self.into_parts();
+        let fields = fields.into_iter().map(|expr| expr.into()).collect();
+        tabular_operators.push(TabularOperator::ProjectAway { fields });
+        AplBuilder {
+            state: Populated {
+                dataset_name,
+                tabular_operators,
+            },
+        }
+    }
+
+    fn project_keep<F>(self, fields: Vec<F>) -> AplBuilder<Populated>
+    where
+        F: Into<String>,
+    {
+        let (dataset_name, mut tabular_operators) = self.into_parts();
+        let fields = fields.into_iter().map(|expr| expr.into()).collect();
+        tabular_operators.push(TabularOperator::ProjectKeep { fields });
+        AplBuilder {
+            state: Populated {
+                dataset_name,
+                tabular_operators,
+            },
+        }
     }
 
     fn summarize<A, B>(mut self, aggregation: A, by: B) -> Self
@@ -221,6 +275,9 @@ pub trait TabularOperators: WithTabularOperators + Sized {
         let mut apl = format!("['{}']", dataset_name);
 
         actions.iter().for_each(|action| match action {
+            TabularOperator::Extend { exprs } => {
+                apl.push_str(&format!(r#" | extend {}"#, exprs.join(", ")));
+            }
             TabularOperator::Where { left, op, right } => {
                 apl.push_str(&format!(r#" | where {} {} "{}""#, left, op, right));
             }
@@ -233,8 +290,14 @@ pub trait TabularOperators: WithTabularOperators + Sized {
             TabularOperator::Count => {
                 apl.push_str(" | count");
             }
-            TabularOperator::Project { fields } => {
+            TabularOperator::Project { exprs: fields } => {
                 apl.push_str(&format!(" | project {}", fields.join(", ")));
+            }
+            TabularOperator::ProjectAway { fields } => {
+                apl.push_str(&format!(r#" | project-away {}"#, fields.join(", ")));
+            }
+            TabularOperator::ProjectKeep { fields } => {
+                apl.push_str(&format!(r#" | project-keep {}"#, fields.join(", ")));
             }
             TabularOperator::Summarize { aggregation, by } => {
                 apl.push_str(&format!(" | summarize {} by {}", aggregation, by));
