@@ -28,8 +28,10 @@
 //!     Ok(())
 //! }
 //! ```
+mod apl;
 mod client;
 mod model;
 
+pub use apl::*;
 pub use client::Client;
 pub use model::*;
