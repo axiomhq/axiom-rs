@@ -402,7 +402,7 @@ mod tests {
     fn test_builder_advanced() {
         let apl = builder()
             .dataset("foo")
-            .where_eq("foo", "bar")
+            .where_eq("foo", "'bar'")
             .and_eq("bar", "baz")
             .or_eq("baz", "qux")
             .count()
@@ -410,7 +410,7 @@ mod tests {
             .summarize("count()", "bin_auto(_time)")
             .build();
         assert_eq!(
-            r#"['foo'] | where foo == "bar" | count | project foo | summarize count() by bin_auto(_time)"#,
+            r#"['foo'] | where foo == 'bar' and bar == baz or baz == qux | count | project foo | summarize count() by bin_auto(_time)"#,
             apl
         );
     }
