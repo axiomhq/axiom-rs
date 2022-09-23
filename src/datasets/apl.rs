@@ -34,6 +34,7 @@ pub enum TabularOperator {
     ProjectAway {
         fields: Vec<String>,
     },
+    Take(u32),
     Extend {
         exprs: Vec<String>,
     },
@@ -257,16 +258,36 @@ pub trait TabularOperators: WithTabularOperators + Sized {
         }
     }
 
-    fn summarize<A, B>(mut self, aggregation: A, by: B) -> Self
+    fn take<N>(self, n: N) -> AplBuilder<Populated>
+    where
+        N: Into<u32>,
+    {
+        let (dataset_name, mut tabular_operators) = self.into_parts();
+        tabular_operators.push(TabularOperator::Take(n.into()));
+        AplBuilder {
+            state: Populated {
+                dataset_name,
+                tabular_operators,
+            },
+        }
+    }
+
+    fn summarize<A, B>(self, aggregation: A, by: B) -> AplBuilder<Populated>
     where
         A: Into<String>,
         B: Into<String>,
     {
-        self.push_tabular_operator(TabularOperator::Summarize {
+        let (dataset_name, mut tabular_operators) = self.into_parts();
+        tabular_operators.push(TabularOperator::Summarize {
             aggregation: aggregation.into(),
             by: by.into(),
         });
-        self
+        AplBuilder {
+            state: Populated {
+                dataset_name,
+                tabular_operators,
+            },
+        }
     }
 
     fn build(self) -> String {
@@ -298,6 +319,9 @@ pub trait TabularOperators: WithTabularOperators + Sized {
             }
             TabularOperator::ProjectKeep { fields } => {
                 apl.push_str(&format!(r#" | project-keep {}"#, fields.join(", ")));
+            }
+            TabularOperator::Take(n) => {
+                apl.push_str(&format!(" | take {}", n));
             }
             TabularOperator::Summarize { aggregation, by } => {
                 apl.push_str(&format!(" | summarize {} by {}", aggregation, by));
