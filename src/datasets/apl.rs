@@ -300,13 +300,13 @@ pub trait TabularOperators: WithTabularOperators + Sized {
                 apl.push_str(&format!(r#" | extend {}"#, exprs.join(", ")));
             }
             TabularOperator::Where { left, op, right } => {
-                apl.push_str(&format!(r#" | where {} {} "{}""#, left, op, right));
+                apl.push_str(&format!(r#" | where {} {} {}"#, left, op, right));
             }
             TabularOperator::And { left, op, right } => {
-                apl.push_str(&format!(r#" and {} {} "{}""#, left, op, right));
+                apl.push_str(&format!(r#" and {} {} {}"#, left, op, right));
             }
             TabularOperator::Or { left, op, right } => {
-                apl.push_str(&format!(r#" or {} {} "{}""#, left, op, right));
+                apl.push_str(&format!(r#" or {} {} {}"#, left, op, right));
             }
             TabularOperator::Count => {
                 apl.push_str(" | count");
