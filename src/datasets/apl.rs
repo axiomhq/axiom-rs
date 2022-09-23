@@ -1,9 +1,9 @@
 pub struct Empty;
-pub struct Populated {
+pub struct WithDataset {
     dataset_name: String,
     tabular_operators: Vec<TabularOperator>,
 }
-pub struct WhereClause {
+pub struct InWhereClause {
     dataset_name: String,
     tabular_operators: Vec<TabularOperator>,
 }
@@ -54,12 +54,12 @@ pub fn builder() -> AplBuilder<Empty> {
 }
 
 impl AplBuilder<Empty> {
-    pub fn dataset<S>(self, dataset_name: S) -> AplBuilder<Populated>
+    pub fn dataset<S>(self, dataset_name: S) -> AplBuilder<WithDataset>
     where
         S: Into<String>,
     {
         AplBuilder {
-            state: Populated {
+            state: WithDataset {
                 dataset_name: dataset_name.into(),
                 tabular_operators: vec![],
             },
@@ -67,7 +67,7 @@ impl AplBuilder<Empty> {
     }
 }
 
-impl WithTabularOperators for AplBuilder<Populated> {
+impl WithTabularOperators for AplBuilder<WithDataset> {
     fn into_parts(self) -> (String, Vec<TabularOperator>) {
         (self.state.dataset_name, self.state.tabular_operators)
     }
@@ -77,7 +77,7 @@ impl WithTabularOperators for AplBuilder<Populated> {
     }
 }
 
-impl WithTabularOperators for AplBuilder<WhereClause> {
+impl WithTabularOperators for AplBuilder<InWhereClause> {
     fn into_parts(self) -> (String, Vec<TabularOperator>) {
         (self.state.dataset_name, self.state.tabular_operators)
     }
@@ -93,12 +93,12 @@ pub trait WithTabularOperators {
     fn push_tabular_operator(&mut self, action: TabularOperator);
 }
 
-impl TabularOperators for AplBuilder<Populated> {}
-impl TabularOperators for AplBuilder<WhereClause> {}
+impl TabularOperators for AplBuilder<WithDataset> {}
+impl TabularOperators for AplBuilder<InWhereClause> {}
 
 macro_rules! where_fn(
     ($name:ident, $op:expr) => (
-        fn $name<L, R>(self, left: L, right: R) -> AplBuilder<WhereClause>
+        fn $name<L, R>(self, left: L, right: R) -> AplBuilder<InWhereClause>
         where
             L: Into<String>,
             R: Into<String>,
@@ -110,7 +110,7 @@ macro_rules! where_fn(
             right: right.into(),
         });
         AplBuilder {
-            state: WhereClause {
+            state: InWhereClause {
                 dataset_name,
                 tabular_operators,
             },
@@ -121,7 +121,7 @@ macro_rules! where_fn(
 
 macro_rules! and_fn(
     ($name:ident, $op:expr) => (
-        pub fn $name<L, R>(self, left: L, right: R) -> AplBuilder<WhereClause>
+        pub fn $name<L, R>(self, left: L, right: R) -> AplBuilder<InWhereClause>
         where
             L: Into<String>,
             R: Into<String>,
@@ -133,7 +133,7 @@ macro_rules! and_fn(
             right: right.into(),
         });
         AplBuilder {
-            state: WhereClause {
+            state: InWhereClause {
                 dataset_name,
                 tabular_operators,
             },
@@ -144,7 +144,7 @@ macro_rules! and_fn(
 
 macro_rules! or_fn(
     ($name:ident, $op:expr) => (
-        pub fn $name<L, R>(self, left: L, right: R) -> AplBuilder<WhereClause>
+        pub fn $name<L, R>(self, left: L, right: R) -> AplBuilder<InWhereClause>
         where
             L: Into<String>,
             R: Into<String>,
@@ -156,7 +156,7 @@ macro_rules! or_fn(
             right: right.into(),
         });
         AplBuilder {
-            state: WhereClause {
+            state: InWhereClause {
                 dataset_name,
                 tabular_operators,
             },
@@ -166,7 +166,7 @@ macro_rules! or_fn(
 );
 
 pub trait TabularOperators: WithTabularOperators + Sized {
-    fn extend<E>(self, exprs: Vec<E>) -> AplBuilder<Populated>
+    fn extend<E>(self, exprs: Vec<E>) -> AplBuilder<WithDataset>
     where
         E: Into<String>,
     {
@@ -174,14 +174,14 @@ pub trait TabularOperators: WithTabularOperators + Sized {
         let exprs = exprs.into_iter().map(|expr| expr.into()).collect();
         tabular_operators.push(TabularOperator::Extend { exprs });
         AplBuilder {
-            state: Populated {
+            state: WithDataset {
                 dataset_name,
                 tabular_operators,
             },
         }
     }
 
-    fn where_raw<L, O, R>(self, left: L, op: O, right: R) -> AplBuilder<WhereClause>
+    fn where_raw<L, O, R>(self, left: L, op: O, right: R) -> AplBuilder<InWhereClause>
     where
         L: Into<String>,
         O: Into<String>,
@@ -194,7 +194,7 @@ pub trait TabularOperators: WithTabularOperators + Sized {
             right: right.into(),
         });
         AplBuilder {
-            state: WhereClause {
+            state: InWhereClause {
                 dataset_name,
                 tabular_operators,
             },
@@ -208,11 +208,11 @@ pub trait TabularOperators: WithTabularOperators + Sized {
     where_fn!(where_lt, "<");
     where_fn!(where_le, "<=");
 
-    fn count(self) -> AplBuilder<Populated> {
+    fn count(self) -> AplBuilder<WithDataset> {
         let (dataset_name, mut tabular_operators) = self.into_parts();
         tabular_operators.push(TabularOperator::Count);
         AplBuilder {
-            state: Populated {
+            state: WithDataset {
                 dataset_name,
                 tabular_operators,
             },
@@ -228,7 +228,7 @@ pub trait TabularOperators: WithTabularOperators + Sized {
         self
     }
 
-    fn project_away<F>(self, fields: Vec<F>) -> AplBuilder<Populated>
+    fn project_away<F>(self, fields: Vec<F>) -> AplBuilder<WithDataset>
     where
         F: Into<String>,
     {
@@ -236,14 +236,14 @@ pub trait TabularOperators: WithTabularOperators + Sized {
         let fields = fields.into_iter().map(|expr| expr.into()).collect();
         tabular_operators.push(TabularOperator::ProjectAway { fields });
         AplBuilder {
-            state: Populated {
+            state: WithDataset {
                 dataset_name,
                 tabular_operators,
             },
         }
     }
 
-    fn project_keep<F>(self, fields: Vec<F>) -> AplBuilder<Populated>
+    fn project_keep<F>(self, fields: Vec<F>) -> AplBuilder<WithDataset>
     where
         F: Into<String>,
     {
@@ -251,28 +251,28 @@ pub trait TabularOperators: WithTabularOperators + Sized {
         let fields = fields.into_iter().map(|expr| expr.into()).collect();
         tabular_operators.push(TabularOperator::ProjectKeep { fields });
         AplBuilder {
-            state: Populated {
+            state: WithDataset {
                 dataset_name,
                 tabular_operators,
             },
         }
     }
 
-    fn take<N>(self, n: N) -> AplBuilder<Populated>
+    fn take<N>(self, n: N) -> AplBuilder<WithDataset>
     where
         N: Into<u32>,
     {
         let (dataset_name, mut tabular_operators) = self.into_parts();
         tabular_operators.push(TabularOperator::Take(n.into()));
         AplBuilder {
-            state: Populated {
+            state: WithDataset {
                 dataset_name,
                 tabular_operators,
             },
         }
     }
 
-    fn summarize<A, B>(self, aggregation: A, by: B) -> AplBuilder<Populated>
+    fn summarize<A, B>(self, aggregation: A, by: B) -> AplBuilder<WithDataset>
     where
         A: Into<String>,
         B: Into<String>,
@@ -283,7 +283,7 @@ pub trait TabularOperators: WithTabularOperators + Sized {
             by: by.into(),
         });
         AplBuilder {
-            state: Populated {
+            state: WithDataset {
                 dataset_name,
                 tabular_operators,
             },
@@ -332,8 +332,8 @@ pub trait TabularOperators: WithTabularOperators + Sized {
     }
 }
 
-impl AplBuilder<WhereClause> {
-    pub fn and_raw<L, O, R>(self, left: L, op: O, right: R) -> AplBuilder<WhereClause>
+impl AplBuilder<InWhereClause> {
+    pub fn and_raw<L, O, R>(self, left: L, op: O, right: R) -> AplBuilder<InWhereClause>
     where
         L: Into<String>,
         O: Into<String>,
@@ -346,7 +346,7 @@ impl AplBuilder<WhereClause> {
             right: right.into(),
         });
         AplBuilder {
-            state: WhereClause {
+            state: InWhereClause {
                 dataset_name,
                 tabular_operators,
             },
@@ -360,7 +360,7 @@ impl AplBuilder<WhereClause> {
     and_fn!(and_lt, "<");
     and_fn!(and_le, "<=");
 
-    pub fn or_raw<L, O, R>(self, left: L, op: O, right: R) -> AplBuilder<WhereClause>
+    pub fn or_raw<L, O, R>(self, left: L, op: O, right: R) -> AplBuilder<InWhereClause>
     where
         L: Into<String>,
         O: Into<String>,
@@ -373,7 +373,7 @@ impl AplBuilder<WhereClause> {
             right: right.into(),
         });
         AplBuilder {
-            state: WhereClause {
+            state: InWhereClause {
                 dataset_name,
                 tabular_operators,
             },
