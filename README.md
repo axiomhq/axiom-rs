@@ -57,6 +57,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+For further examples, head over to the [examples](examples) directory.
+
 ## Optional Features
 
 The following are a list of
