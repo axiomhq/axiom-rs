@@ -1,6 +1,8 @@
 //! The top-level client for the Axiom API.
 use std::env;
 
+use serde::__private::doc;
+
 use crate::{
     datasets,
     error::{Error, Result},
@@ -19,15 +21,14 @@ static CLOUD_URL: &str = "https://cloud.axiom.co";
 /// use axiom_rs::{Client, Error};
 ///
 /// fn main() -> Result<(), Error> {
-///     // Create a new client and get the token, url and (if necesary) org id
-///     // from the environment variables AXIOM_TOKEN, AXIOM_URL and AXIOM_ORG_ID.
+///     // Create a new client and get the token and (if necesary) org id
+///     // from the environment variables AXIOM_TOKEN and AXIOM_ORG_ID.
 ///     let client = Client::new()?;
 ///
 ///     // Set all available options. Unset options fall back to environment
 ///     // variables.
 ///     let client = Client::builder()
 ///         .with_token("my-token")
-///         .with_url("http://example.org")
 ///         .with_org_id("my-org-id")
 ///         .build()?;
 ///
@@ -95,9 +96,9 @@ impl Builder {
         self
     }
 
-    /// Add an URL to the client. If this is not set, the URL will be read
-    /// from the environment variable `AXIOM_URL`. If that is empty as well,
-    /// it will fall back to Axiom Cloud.
+    /// Add an URL to the client. This is only meant for testing purposes, you
+    /// don't need to set it.
+    #[doc(hidden)]
     pub fn with_url<S: Into<String>>(mut self, url: S) -> Self {
         self.url = Some(url.into());
         self
