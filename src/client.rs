@@ -1,8 +1,6 @@
 //! The top-level client for the Axiom API.
 use std::env;
 
-use serde::__private::doc;
-
 use crate::{
     datasets,
     error::{Error, Result},
@@ -54,6 +52,7 @@ impl Client {
     }
 
     /// Get the url (cloned).
+    #[doc(hidden)]
     pub fn url(&self) -> String {
         self.url.clone()
     }
