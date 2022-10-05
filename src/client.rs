@@ -1,8 +1,6 @@
 //! The top-level client for the Axiom API.
 use std::env;
 
-use serde::__private::doc;
-
 use crate::{
     datasets,
     error::{Error, Result},
