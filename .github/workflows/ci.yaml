@@ -61,8 +61,6 @@ jobs:
             flags: --no-default-features --features async-std
     steps:
       - uses: actions/checkout@v3
-      - uses: axiomhq/setup-axiom@v1
-        id: axiom
       - uses: actions/cache@v3
         with:
           path: |
@@ -75,8 +73,9 @@ jobs:
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         env:
-          AXIOM_URL: ${{ steps.axiom.outputs.url }}
-          AXIOM_TOKEN: ${{ steps.axiom.outputs.token }}
+          AXIOM_URL: ${{ secrets.TESTING_CLOUD_DEV_DEPLOYMENT_URL }}
+          AXIOM_TOKEN: ${{ secrets.TESTING_CLOUD_DEV_ACCESS_TOKEN }}
+          AXIOM_ORG_ID: ${{ secrets.TESTING_CLOUD_DEV_ORG_ID }}
           AXIOM_DATASET_SUFFIX: ${{ github.run_id }}
         with:
           command: test
