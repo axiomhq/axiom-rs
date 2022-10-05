@@ -52,6 +52,7 @@ impl Client {
     }
 
     /// Get the url (cloned).
+    #[doc(hidden)]
     pub fn url(&self) -> String {
         self.url.clone()
     }
