@@ -262,6 +262,10 @@ impl Client {
 
     /// Execute the given query on the dataset identified by its id.
     #[instrument(skip(self, opts))]
+    #[deprecated(
+        since = "0.6.0",
+        note = "The legacy query will be removed in future versions, use `apl_query` instead"
+    )]
     pub async fn query<N, O>(&self, dataset_name: N, query: Query, opts: O) -> Result<QueryResult>
     where
         N: Into<String> + FmtDebug,
