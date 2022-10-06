@@ -7,8 +7,8 @@ use crate::{
     http, is_personal_token, users,
 };
 
-/// Cloud URL is the URL for Axiom Cloud.
-static CLOUD_URL: &str = "https://cloud.axiom.co";
+/// The Axiom API URL.
+static API_URL: &str = "https://api.axiom.co";
 
 /// The client is the entrypoint of the whole SDK.
 ///
@@ -127,7 +127,7 @@ impl Builder {
             url = env::var("AXIOM_URL").unwrap_or_default();
         }
         if url.is_empty() {
-            url = CLOUD_URL.to_string();
+            url = API_URL.to_string();
         }
 
         let mut org_id = self.org_id.unwrap_or_default();
@@ -136,7 +136,7 @@ impl Builder {
         };
 
         // On Cloud you need an Org ID for Personal Tokens.
-        if url == CLOUD_URL && org_id.is_empty() && is_personal_token(&token) {
+        if url == API_URL && org_id.is_empty() && is_personal_token(&token) {
             return Err(Error::MissingOrgId);
         }
 

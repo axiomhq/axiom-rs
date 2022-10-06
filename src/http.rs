@@ -42,10 +42,7 @@ impl Client {
         T: Into<String>,
         O: Into<Option<String>>,
     {
-        let base_url = Url::parse(base_url.as_ref())
-            .map_err(Error::InvalidUrl)?
-            .join("api/")
-            .map_err(Error::InvalidUrl)?;
+        let base_url = Url::parse(base_url.as_ref()).map_err(Error::InvalidUrl)?;
         let token = token.into();
 
         let mut default_headers = header::HeaderMap::new();
@@ -283,7 +280,7 @@ mod test {
 
         let server = MockServer::start();
         let rate_mock = server.mock(|when, then| {
-            when.method(POST).path("/api/v1/datasets/test/ingest");
+            when.method(POST).path("/v1/datasets/test/ingest");
             then.status(429)
                 .json_body(json!({ "message": "rate limit exceeded" }))
                 .header(limits::HEADER_INGEST_LIMIT, "42")
@@ -324,7 +321,7 @@ mod test {
 
         let server = MockServer::start();
         let rate_mock = server.mock(|when, then| {
-            when.method(POST).path("/api/v1/datasets/_apl");
+            when.method(POST).path("/v1/datasets/_apl");
             then.status(429)
                 .json_body(json!({ "message": "rate limit exceeded" }))
                 .header(limits::HEADER_QUERY_LIMIT, "42")
@@ -361,7 +358,7 @@ mod test {
 
         let server = MockServer::start();
         let rate_mock = server.mock(|when, then| {
-            when.method(GET).path("/api/v1/datasets");
+            when.method(GET).path("/v1/datasets");
             then.status(429)
                 .json_body(json!({ "message": "rate limit exceeded" }))
                 .header(limits::HEADER_RATE_SCOPE, "user")
