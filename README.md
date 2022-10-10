@@ -24,7 +24,7 @@ Add the following to your Cargo.toml:
 
 ```toml
 [dependencies]
-axiom-rs = "0.5"
+axiom-rs = "0.6"
 ```
 
 If you use the [Axiom CLI](https://github.com/axiomhq/cli), run `eval $(axiom config export -f)` to configure your environment variables.
