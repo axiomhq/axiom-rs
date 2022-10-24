@@ -487,6 +487,7 @@ pub enum AggregationOp {
     Count,
     CountDistinct,
     MakeSet,
+    MakeSetIf,
 
     // Only works for numbers.
     Sum,
@@ -505,9 +506,6 @@ pub enum AggregationOp {
     // the APL query result.
     CountIf,
     DistinctIf,
-    MakeSetIf,
-    Rate,
-    Pearson,
 
     Unknown(String),
 }
@@ -521,6 +519,7 @@ impl Serialize for AggregationOp {
             Self::Count => "count",
             Self::CountDistinct => "distinct",
             Self::MakeSet => "makeset",
+            Self::MakeSetIf => "makesetif",
             Self::Sum => "sum",
             Self::Avg => "avg",
             Self::Min => "min",
@@ -534,9 +533,6 @@ impl Serialize for AggregationOp {
             Self::ArgMax => "argmax",
             Self::CountIf => "countif",
             Self::DistinctIf => "distinctif",
-            Self::MakeSetIf => "makesetif",
-            Self::Rate => "rate",
-            Self::Pearson => "pearson_correlation",
             Self::Unknown(ref s) => s,
         })
     }
@@ -559,6 +555,7 @@ impl<'de> Visitor<'de> for AggregationOpVisitor {
             "count" => Ok(Self::Value::Count),
             "distinct" => Ok(Self::Value::CountDistinct),
             "makeset" => Ok(Self::Value::MakeSet),
+            "makesetif" => Ok(Self::Value::MakeSetIf),
             "sum" => Ok(Self::Value::Sum),
             "avg" => Ok(Self::Value::Avg),
             "min" => Ok(Self::Value::Min),
@@ -572,9 +569,6 @@ impl<'de> Visitor<'de> for AggregationOpVisitor {
             "argmax" => Ok(Self::Value::ArgMax),
             "countif" => Ok(Self::Value::CountIf),
             "distinctif" => Ok(Self::Value::DistinctIf),
-            "makesetif" => Ok(Self::Value::MakeSetIf),
-            "rate" => Ok(Self::Value::Rate),
-            "pearson_correlation" => Ok(Self::Value::Pearson),
             aggregation => Ok(Self::Value::Unknown(aggregation.to_string())),
         }
     }
