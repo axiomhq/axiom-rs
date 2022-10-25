@@ -31,6 +31,7 @@ tokio = { version = "1", optional = true, features = ["rt", "sync"] }
 async-std = { version = "1", optional = true, features = ["tokio1"] }
 url = "2"
 tracing = { version = "0.1" }
+tokio-stream = "0.1"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
