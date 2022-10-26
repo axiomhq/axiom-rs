@@ -2,7 +2,7 @@
 use async_std::task::spawn_blocking;
 use bytes::Bytes;
 use flate2::{write::GzEncoder, Compression};
-use futures::{Stream, StreamExt};
+use futures::Stream;
 use reqwest::header;
 use serde::Serialize;
 use std::{
@@ -14,6 +14,7 @@ use std::{
 };
 #[cfg(feature = "tokio")]
 use tokio::task::spawn_blocking;
+use tokio_stream::StreamExt;
 use tracing::instrument;
 
 use crate::{
@@ -216,7 +217,7 @@ impl Client {
         E: Serialize,
     {
         let dataset_name = dataset_name.into();
-        let mut chunks = Box::pin(stream.chunks(1000));
+        let mut chunks = Box::pin(stream.chunks_timeout(1000, StdDuration::from_secs(1)));
         let mut ingest_status = IngestStatus::default();
         while let Some(events) = chunks.next().await {
             let new_ingest_status = self.ingest(dataset_name.clone(), events).await?;
@@ -239,7 +240,7 @@ impl Client {
         E: std::error::Error + Send + Sync + 'static,
     {
         let dataset_name = dataset_name.into();
-        let mut chunks = Box::pin(stream.chunks(1000));
+        let mut chunks = Box::pin(stream.chunks_timeout(1000, StdDuration::from_secs(1)));
         let mut ingest_status = IngestStatus::default();
         while let Some(events) = chunks.next().await {
             let events: StdResult<Vec<I>, E> = events.into_iter().collect();
