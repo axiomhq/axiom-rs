@@ -54,6 +54,7 @@ jobs:
     name: Run tests on ${{ matrix.runtime }}
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       matrix:
         include:
           - runtime: Tokio
