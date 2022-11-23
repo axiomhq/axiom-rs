@@ -189,12 +189,12 @@ async fn test_datasets_impl(ctx: &mut Context) {
         .client
         .query_legacy(
             &ctx.dataset.name,
-            Query {
+            LegacyQuery {
                 start_time: Some(Utc::now() - Duration::minutes(1)),
                 end_time: Some(Utc::now()),
                 ..Default::default()
             },
-            Some(QueryOptions {
+            Some(LegacyQueryOptions {
                 save_as_kind: QueryKind::Analytics,
                 ..Default::default()
             }),
@@ -212,7 +212,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
         .client
         .query(
             format!("['{}']", ctx.dataset.name),
-            AplOptions {
+            QueryOptions {
                 save: true,
                 ..Default::default()
             },
@@ -226,7 +226,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
     assert_eq!(1000, apl_query_result.matches.len());
 
     // Run a more complex query.
-    let query = Query {
+    let query = LegacyQuery {
         start_time: Some(Utc::now() - Duration::minutes(1)),
         end_time: Some(Utc::now()),
         aggregations: vec![Aggregation {
@@ -267,7 +267,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
         .query_legacy(
             &ctx.dataset.name,
             query,
-            QueryOptions {
+            LegacyQueryOptions {
                 save_as_kind: QueryKind::Analytics,
                 ..Default::default()
             },

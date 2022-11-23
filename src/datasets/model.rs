@@ -287,15 +287,15 @@ pub struct DatasetUpdateRequest {
 /// If you're looking for the analytics, check out [`Query`].
 #[derive(Serialize, Deserialize, Debug, Default, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct AplQuery {
+pub struct Query {
     pub apl: String,
     pub start_time: Option<DateTime<Utc>>,
     pub end_time: Option<DateTime<Utc>>,
 }
 
-// AplQueryParams is the part of `AplOptions` that is added to the request url.
+// QueryParams is the part of `QueryOptions` that is added to the request url.
 #[derive(Serialize, Debug, Default)]
-pub(crate) struct AplQueryParams {
+pub(crate) struct QueryParams {
     #[serde(rename = "nocache")]
     pub no_cache: bool,
     #[serde(rename = "saveAsKind")]
@@ -305,7 +305,7 @@ pub(crate) struct AplQueryParams {
 
 /// The optional parameters to APL query methods.
 #[derive(Debug)]
-pub struct AplOptions {
+pub struct QueryOptions {
     /// The start time of the query.
     pub start_time: Option<DateTime<Utc>>,
     // The end time of the query.
@@ -324,9 +324,9 @@ pub struct AplOptions {
     pub format: AplResultFormat,
 }
 
-impl Default for AplOptions {
+impl Default for QueryOptions {
     fn default() -> Self {
-        AplOptions {
+        QueryOptions {
             start_time: None,
             end_time: None,
             no_cache: false,
@@ -403,10 +403,10 @@ impl Default for QueryKind {
 }
 
 /// A query that gets executed on a dataset.
-/// If you're looking for the APL query, check out [`AplQuery`].
+/// If you're looking for the APL query, check out [`Query`].
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct Query {
+pub struct LegacyQuery {
     /// Start time of the query.
     #[serde(deserialize_with = "empty_string_as_none")]
     pub start_time: Option<DateTime<Utc>>,
@@ -451,9 +451,9 @@ pub struct Query {
     pub continuation_token: String,
 }
 
-impl Default for Query {
+impl Default for LegacyQuery {
     fn default() -> Self {
-        Query {
+        LegacyQuery {
             start_time: None,
             end_time: None,
             resolution: "".to_string(),
@@ -755,7 +755,7 @@ pub struct VirtualField {
 
 /// The parameters for a query.
 #[derive(Serialize, Deserialize, Debug, Default)]
-pub struct QueryOptions {
+pub struct LegacyQueryOptions {
     #[serde(rename = "streaming-duration")]
     pub streaming_duration: Option<String>, // TODO: Implement custom type to {de,}serialize to/from go string
     #[serde(rename = "no-cache")]
@@ -764,13 +764,12 @@ pub struct QueryOptions {
     pub save_as_kind: QueryKind,
 }
 
-/// The result of an APL query. It embeds the APL request in the result it
-/// created.
+/// The query result. It embeds the APL request in the result it created.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct AplQueryResult {
+pub struct QueryResult {
     /// The query request.
-    pub request: Query,
+    pub request: LegacyQuery,
     // NOTE: The following is copied from QueryResult. Maybe we should have a macro?
     /// The status of the query result.
     pub status: QueryStatus,
@@ -788,9 +787,9 @@ pub struct AplQueryResult {
     pub saved_query_id: Option<String>,
 }
 
-/// The result of a query.
+/// The legacy result of a query.
 #[derive(Serialize, Deserialize, Debug)]
-pub struct QueryResult {
+pub struct LegacyQueryResult {
     /// The status of the query result.
     pub status: QueryStatus,
     /// The events that matched the query.

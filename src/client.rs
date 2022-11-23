@@ -1,6 +1,7 @@
 //! The top-level client for the Axiom API.
 use datasets::{
-    AplOptions, AplQuery, AplQueryParams, AplQueryResult, Query, QueryOptions, QueryResult,
+    LegacyQuery, LegacyQueryOptions, LegacyQueryResult, Query, QueryOptions, QueryParams,
+    QueryResult,
 };
 use std::env;
 use std::fmt::Debug as FmtDebug;
@@ -71,20 +72,20 @@ impl Client {
 
     /// Executes the given query specified using the Axiom Processing Language (APL).
     #[instrument(skip(self, opts))]
-    pub async fn query<S, O>(&self, apl: S, opts: O) -> Result<AplQueryResult>
+    pub async fn query<S, O>(&self, apl: S, opts: O) -> Result<QueryResult>
     where
         S: Into<String> + FmtDebug,
-        O: Into<Option<AplOptions>>,
+        O: Into<Option<QueryOptions>>,
     {
         let (req, query_params) = match opts.into() {
             Some(opts) => {
-                let req = AplQuery {
+                let req = Query {
                     apl: apl.into(),
                     start_time: opts.start_time,
                     end_time: opts.end_time,
                 };
 
-                let query_params = AplQueryParams {
+                let query_params = QueryParams {
                     no_cache: opts.no_cache,
                     save: opts.save,
                     format: opts.format,
@@ -93,11 +94,11 @@ impl Client {
                 (req, query_params)
             }
             None => (
-                AplQuery {
+                Query {
                     apl: apl.into(),
                     ..Default::default()
                 },
-                AplQueryParams::default(),
+                QueryParams::default(),
             ),
         };
 
@@ -113,7 +114,7 @@ impl Client {
             .map_err(|_e| Error::InvalidQueryId)?
             .map(|s| s.to_string());
 
-        let mut result = res.json::<AplQueryResult>().await?;
+        let mut result = res.json::<QueryResult>().await?;
         result.saved_query_id = saved_query_id;
 
         Ok(result)
@@ -128,12 +129,12 @@ impl Client {
     pub async fn query_legacy<N, O>(
         &self,
         dataset_name: N,
-        query: Query,
+        query: LegacyQuery,
         opts: O,
-    ) -> Result<QueryResult>
+    ) -> Result<LegacyQueryResult>
     where
         N: Into<String> + FmtDebug,
-        O: Into<Option<QueryOptions>>,
+        O: Into<Option<LegacyQueryOptions>>,
     {
         let path = format!(
             "/v1/datasets/{}/query?{}",
@@ -152,7 +153,7 @@ impl Client {
             .transpose()
             .map_err(|_e| Error::InvalidQueryId)?
             .map(|s| s.to_string());
-        let mut result = res.json::<QueryResult>().await?;
+        let mut result = res.json::<LegacyQueryResult>().await?;
         result.saved_query_id = saved_query_id;
 
         Ok(result)
