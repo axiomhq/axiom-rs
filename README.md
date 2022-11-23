@@ -27,9 +27,13 @@ Add the following to your Cargo.toml:
 axiom-rs = "0.6"
 ```
 
-If you use the [Axiom CLI](https://github.com/axiomhq/cli), run `eval $(axiom config export -f)` to configure your environment variables.
+If you use the [Axiom CLI](https://github.com/axiomhq/cli), run
+`eval $(axiom config export -f)` to configure your environment variables.
 
-Otherwise create a personal token in [the Axiom settings](https://cloud.axiom.co/settings/profile) and export it as `AXIOM_TOKEN`. Set `AXIOM_ORG_ID` to the organization ID from the settings page of the organization you want to access.
+Otherwise create a personal token in
+[the Axiom settings](https://cloud.axiom.co/settings/profile) and make note of
+the organization ID from the settings page of the organization you want to
+access.
 
 Create and use a client like this:
 
@@ -39,15 +43,30 @@ use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Build your client by providing a personal token and an org id:
+    let client = Client::builder()
+        .with_token("my-token")
+        .with_org_id("my-org")
+        .build()?;
+
+    // Alternatively you autoconfigure the client from the environment variables
+    // AXIOM_TOKEN and AXIOM_ORG_ID:
     let client = Client::new()?;
 
     client.datasets.create("my-dataset", "").await?;
 
-    client.datasets.ingest("my-dataset", vec![json!({
-        "foo": "bar",
-    })]).await?;
+    client
+        .datasets
+        .ingest(
+            "my-dataset",
+            vec![json!({
+                "foo": "bar",
+            })],
+        )
+        .await?;
 
-    let res = client.datasets
+    let res = client
+        .datasets
         .apl_query(r#"['my-dataset'] | where foo == "bar" | limit 100"#, None)
         .await?;
     println!("{:?}", res);
