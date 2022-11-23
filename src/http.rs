@@ -341,7 +341,7 @@ mod test {
             .with_token("xapt-nope")
             .build()?;
 
-        match client.datasets.apl_query("test | count", None).await {
+        match client.query("test | count", None).await {
             Err(Error::RateLimitExceeded(limits)) => {
                 assert_eq!(limits.limit, 42);
                 assert_eq!(limits.remaining, 0);

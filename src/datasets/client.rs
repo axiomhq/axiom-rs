@@ -25,6 +25,8 @@ use crate::{
 
 /// Provides methods to work with Axiom datasets, including ingesting and
 /// querying.
+/// If you're looking for the query methods, those are at the
+/// [top-level client](crate::Client).
 #[derive(Debug, Clone)]
 pub struct Client {
     http_client: http::Client,
@@ -33,56 +35,6 @@ pub struct Client {
 impl Client {
     pub(crate) fn new(http_client: http::Client) -> Self {
         Self { http_client }
-    }
-
-    /// Executes the given query specified using the Axiom Processing Language (APL).
-    #[instrument(skip(self, opts))]
-    pub async fn apl_query<S, O>(&self, apl: S, opts: O) -> Result<AplQueryResult>
-    where
-        S: Into<String> + FmtDebug,
-        O: Into<Option<AplOptions>>,
-    {
-        let (req, query_params) = match opts.into() {
-            Some(opts) => {
-                let req = AplQuery {
-                    apl: apl.into(),
-                    start_time: opts.start_time,
-                    end_time: opts.end_time,
-                };
-
-                let query_params = AplQueryParams {
-                    no_cache: opts.no_cache,
-                    save: opts.save,
-                    format: opts.format,
-                };
-
-                (req, query_params)
-            }
-            None => (
-                AplQuery {
-                    apl: apl.into(),
-                    ..Default::default()
-                },
-                AplQueryParams::default(),
-            ),
-        };
-
-        let query_params = serde_qs::to_string(&query_params)?;
-        let path = format!("/v1/datasets/_apl?{}", query_params);
-        let res = self.http_client.post(path, &req).await?;
-
-        let saved_query_id = res
-            .headers()
-            .get("X-Axiom-History-Query-Id")
-            .map(|s| s.to_str())
-            .transpose()
-            .map_err(|_e| Error::InvalidQueryId)?
-            .map(|s| s.to_string());
-
-        let mut result = res.json::<AplQueryResult>().await?;
-        result.saved_query_id = saved_query_id;
-
-        Ok(result)
     }
 
     /// Create a dataset with the given name and description.

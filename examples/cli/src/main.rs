@@ -106,7 +106,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{:?}", ingest_status);
             }
             Datasets::Query { apl } => {
-                let result = client.datasets.apl_query(apl, None).await?;
+                let result = client.query(apl, None).await?;
                 println!("{:?}", result);
             }
         },

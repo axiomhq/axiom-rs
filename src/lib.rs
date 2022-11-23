@@ -21,7 +21,7 @@
 //!     ]).await?;
 //!
 //!     // Query the dataset
-//!     let query_res = client.datasets.apl_query(r#"['my-dataset']"#, None).await?;
+//!     let query_res = client.query(r#"['my-dataset']"#, None).await?;
 //!     dbg!(query_res.matches);
 //!
 //!     // Delete the dataset

@@ -1,5 +1,8 @@
 //! The top-level client for the Axiom API.
+use datasets::{AplOptions, AplQuery, AplQueryParams, AplQueryResult};
 use std::env;
+use std::fmt::Debug as FmtDebug;
+use tracing::instrument;
 
 use crate::{
     datasets,
@@ -35,6 +38,8 @@ static CLOUD_URL: &str = "https://cloud.axiom.co";
 /// ```
 #[derive(Debug, Clone)]
 pub struct Client {
+    http_client: http::Client,
+
     url: String,
     pub datasets: datasets::Client,
     pub users: users::Client,
@@ -60,6 +65,56 @@ impl Client {
     /// Get client version.
     pub async fn version(&self) -> String {
         env!("CARGO_PKG_VERSION").to_string()
+    }
+
+    /// Executes the given query specified using the Axiom Processing Language (APL).
+    #[instrument(skip(self, opts))]
+    pub async fn query<S, O>(&self, apl: S, opts: O) -> Result<AplQueryResult>
+    where
+        S: Into<String> + FmtDebug,
+        O: Into<Option<AplOptions>>,
+    {
+        let (req, query_params) = match opts.into() {
+            Some(opts) => {
+                let req = AplQuery {
+                    apl: apl.into(),
+                    start_time: opts.start_time,
+                    end_time: opts.end_time,
+                };
+
+                let query_params = AplQueryParams {
+                    no_cache: opts.no_cache,
+                    save: opts.save,
+                    format: opts.format,
+                };
+
+                (req, query_params)
+            }
+            None => (
+                AplQuery {
+                    apl: apl.into(),
+                    ..Default::default()
+                },
+                AplQueryParams::default(),
+            ),
+        };
+
+        let query_params = serde_qs::to_string(&query_params)?;
+        let path = format!("/v1/datasets/_apl?{}", query_params);
+        let res = self.http_client.post(path, &req).await?;
+
+        let saved_query_id = res
+            .headers()
+            .get("X-Axiom-History-Query-Id")
+            .map(|s| s.to_str())
+            .transpose()
+            .map_err(|_e| Error::InvalidQueryId)?
+            .map(|s| s.to_string());
+
+        let mut result = res.json::<AplQueryResult>().await?;
+        result.saved_query_id = saved_query_id;
+
+        Ok(result)
     }
 }
 
@@ -143,6 +198,7 @@ impl Builder {
         let http_client = http::Client::new(url.clone(), token, org_id)?;
 
         Ok(Client {
+            http_client: http_client.clone(),
             url,
             datasets: datasets::Client::new(http_client.clone()),
             users: users::Client::new(http_client),

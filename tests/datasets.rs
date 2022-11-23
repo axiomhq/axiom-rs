@@ -211,8 +211,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
     // Run another query but using APL.
     let apl_query_result = ctx
         .client
-        .datasets
-        .apl_query(
+        .query(
             format!("['{}']", ctx.dataset.name),
             AplOptions {
                 save: true,

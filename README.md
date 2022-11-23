@@ -66,8 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     let res = client
-        .datasets
-        .apl_query(r#"['my-dataset'] | where foo == "bar" | limit 100"#, None)
+        .query(r#"['my-dataset'] | where foo == "bar" | limit 100"#, None)
         .await?;
     println!("{:?}", res);
 
