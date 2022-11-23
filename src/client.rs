@@ -1,5 +1,7 @@
 //! The top-level client for the Axiom API.
-use datasets::{AplOptions, AplQuery, AplQueryParams, AplQueryResult};
+use datasets::{
+    AplOptions, AplQuery, AplQueryParams, AplQueryResult, Query, QueryOptions, QueryResult,
+};
 use std::env;
 use std::fmt::Debug as FmtDebug;
 use tracing::instrument;
@@ -112,6 +114,45 @@ impl Client {
             .map(|s| s.to_string());
 
         let mut result = res.json::<AplQueryResult>().await?;
+        result.saved_query_id = saved_query_id;
+
+        Ok(result)
+    }
+
+    /// Execute the given query on the dataset identified by its id.
+    #[instrument(skip(self, opts))]
+    #[deprecated(
+        since = "0.6.0",
+        note = "The legacy query will be removed in future versions, use `apl_query` instead"
+    )]
+    pub async fn query_legacy<N, O>(
+        &self,
+        dataset_name: N,
+        query: Query,
+        opts: O,
+    ) -> Result<QueryResult>
+    where
+        N: Into<String> + FmtDebug,
+        O: Into<Option<QueryOptions>>,
+    {
+        let path = format!(
+            "/v1/datasets/{}/query?{}",
+            dataset_name.into(),
+            &opts
+                .into()
+                .map(|opts| { serde_qs::to_string(&opts) })
+                .unwrap_or_else(|| Ok(String::new()))?
+        );
+        let res = self.http_client.post(path, &query).await?;
+
+        let saved_query_id = res
+            .headers()
+            .get("X-Axiom-History-Query-Id")
+            .map(|s| s.to_str())
+            .transpose()
+            .map_err(|_e| Error::InvalidQueryId)?
+            .map(|s| s.to_string());
+        let mut result = res.json::<QueryResult>().await?;
         result.saved_query_id = saved_query_id;
 
         Ok(result)

@@ -213,40 +213,6 @@ impl Client {
         self.http_client.get("/v1/datasets").await?.json().await
     }
 
-    /// Execute the given query on the dataset identified by its id.
-    #[instrument(skip(self, opts))]
-    #[deprecated(
-        since = "0.6.0",
-        note = "The legacy query will be removed in future versions, use `apl_query` instead"
-    )]
-    pub async fn query<N, O>(&self, dataset_name: N, query: Query, opts: O) -> Result<QueryResult>
-    where
-        N: Into<String> + FmtDebug,
-        O: Into<Option<QueryOptions>>,
-    {
-        let path = format!(
-            "/v1/datasets/{}/query?{}",
-            dataset_name.into(),
-            &opts
-                .into()
-                .map(|opts| { serde_qs::to_string(&opts) })
-                .unwrap_or_else(|| Ok(String::new()))?
-        );
-        let res = self.http_client.post(path, &query).await?;
-
-        let saved_query_id = res
-            .headers()
-            .get("X-Axiom-History-Query-Id")
-            .map(|s| s.to_str())
-            .transpose()
-            .map_err(|_e| Error::InvalidQueryId)?
-            .map(|s| s.to_string());
-        let mut result = res.json::<QueryResult>().await?;
-        result.saved_query_id = saved_query_id;
-
-        Ok(result)
-    }
-
     /// Trim the dataset identified by its id to a given length.
     /// The max duration given will mark the oldest timestamp an event can have.
     /// Older ones will be deleted from the dataset.

@@ -187,8 +187,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
     // Run a query and make sure we see some results.
     let simple_query_result = ctx
         .client
-        .datasets
-        .query(
+        .query_legacy(
             &ctx.dataset.name,
             Query {
                 start_time: Some(Utc::now() - Duration::minutes(1)),
@@ -265,8 +264,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
     };
     let query_result = ctx
         .client
-        .datasets
-        .query(
+        .query_legacy(
             &ctx.dataset.name,
             query,
             QueryOptions {
