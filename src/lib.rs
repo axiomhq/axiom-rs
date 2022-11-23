@@ -16,7 +16,7 @@
 //!     let dataset = client.datasets.create("my-dataset", "a description").await?;
 //!
 //!     // Ingest one event
-//!     client.datasets.ingest(&dataset.name, vec![
+//!     client.ingest(&dataset.name, vec![
 //!         json!({"foo": "bar"})
 //!     ]).await?;
 //!

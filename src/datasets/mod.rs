@@ -13,7 +13,7 @@
 //!
 //!     client.datasets.create("my-dataset", "").await?;
 //!
-//!     client.datasets.ingest("my-dataset", vec![
+//!     client.ingest("my-dataset", vec![
 //!       json!({
 //!         "foo": "bar",
 //!         "bar": "baz"

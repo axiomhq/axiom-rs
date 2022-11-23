@@ -1,16 +1,28 @@
 //! The top-level client for the Axiom API.
-use datasets::{
-    LegacyQuery, LegacyQueryOptions, LegacyQueryResult, Query, QueryOptions, QueryParams,
-    QueryResult,
+#[cfg(feature = "async-std")]
+use async_std::task::spawn_blocking;
+use bytes::Bytes;
+use flate2::{write::GzEncoder, Compression};
+use futures::Stream;
+use reqwest::header;
+use serde::Serialize;
+use std::{
+    env, fmt::Debug as FmtDebug, io::Write, result::Result as StdResult,
+    time::Duration as StdDuration,
 };
-use std::env;
-use std::fmt::Debug as FmtDebug;
+#[cfg(feature = "tokio")]
+use tokio::task::spawn_blocking;
+use tokio_stream::StreamExt;
 use tracing::instrument;
 
 use crate::{
-    datasets,
+    datasets::{
+        self, ContentEncoding, ContentType, IngestStatus, LegacyQuery, LegacyQueryOptions,
+        LegacyQueryResult, Query, QueryOptions, QueryParams, QueryResult,
+    },
     error::{Error, Result},
-    http, is_personal_token, users,
+    http::{self, HeaderMap},
+    is_personal_token, users,
 };
 
 /// Cloud URL is the URL for Axiom Cloud.
@@ -157,6 +169,121 @@ impl Client {
         result.saved_query_id = saved_query_id;
 
         Ok(result)
+    }
+
+    /// Ingest events into the dataset identified by its id.
+    /// Restrictions for field names (JSON object keys) can be reviewed here:
+    /// <https://www.axiom.co/docs/usage/field-restrictions>.
+    #[instrument(skip(self, events))]
+    pub async fn ingest<N, I, E>(&self, dataset_name: N, events: I) -> Result<IngestStatus>
+    where
+        N: Into<String> + FmtDebug,
+        I: IntoIterator<Item = E>,
+        E: Serialize,
+    {
+        let json_lines: Result<Vec<Vec<u8>>> = events
+            .into_iter()
+            .map(|event| serde_json::to_vec(&event).map_err(Error::Serialize))
+            .collect();
+        let json_payload = json_lines?.join(&b"\n"[..]);
+        let payload = spawn_blocking(move || {
+            let mut gzip_payload = GzEncoder::new(Vec::new(), Compression::default());
+            gzip_payload.write_all(&json_payload)?;
+            gzip_payload.finish()
+        })
+        .await;
+        #[cfg(feature = "tokio")]
+        let payload = payload.map_err(Error::JoinError)?;
+        let payload = payload.map_err(Error::Encoding)?;
+
+        self.ingest_raw(
+            dataset_name,
+            payload,
+            ContentType::NdJson,
+            ContentEncoding::Gzip,
+        )
+        .await
+    }
+
+    /// Ingest data into the dataset identified by its id.
+    /// Restrictions for field names (JSON object keys) can be reviewed here:
+    /// <https://www.axiom.co/docs/usage/field-restrictions>.
+    #[instrument(skip(self, payload))]
+    pub async fn ingest_raw<N, P>(
+        &self,
+        dataset_name: N,
+        payload: P,
+        content_type: ContentType,
+        content_encoding: ContentEncoding,
+    ) -> Result<IngestStatus>
+    where
+        N: Into<String> + FmtDebug,
+        P: Into<Bytes>,
+    {
+        let mut headers = HeaderMap::new();
+        headers.insert(header::CONTENT_TYPE, content_type.into());
+        headers.insert(header::CONTENT_ENCODING, content_encoding.into());
+
+        self.http_client
+            .post_bytes(
+                format!("/v1/datasets/{}/ingest", dataset_name.into()),
+                payload,
+                headers,
+            )
+            .await?
+            .json()
+            .await
+    }
+
+    /// Ingest a stream of events into a dataset. Events will be ingested in
+    /// chunks of 1000 items. If ingestion of a chunk fails, it will be retried
+    /// with a backoff.
+    /// Restrictions for field names (JSON object keys) can be reviewed here:
+    /// <https://www.axiom.co/docs/usage/field-restrictions>.
+    #[instrument(skip(self, stream))]
+    pub async fn ingest_stream<N, S, E>(&self, dataset_name: N, stream: S) -> Result<IngestStatus>
+    where
+        N: Into<String> + FmtDebug,
+        S: Stream<Item = E> + Send + Sync + 'static,
+        E: Serialize,
+    {
+        let dataset_name = dataset_name.into();
+        let mut chunks = Box::pin(stream.chunks_timeout(1000, StdDuration::from_secs(1)));
+        let mut ingest_status = IngestStatus::default();
+        while let Some(events) = chunks.next().await {
+            let new_ingest_status = self.ingest(dataset_name.clone(), events).await?;
+            ingest_status = ingest_status + new_ingest_status
+        }
+        Ok(ingest_status)
+    }
+
+    /// Like [`Client::ingest_stream`], but takes a stream that contains results.
+    #[instrument(skip(self, stream))]
+    pub async fn try_ingest_stream<N, S, I, E>(
+        &self,
+        dataset_name: N,
+        stream: S,
+    ) -> Result<IngestStatus>
+    where
+        N: Into<String> + FmtDebug,
+        S: Stream<Item = StdResult<I, E>> + Send + Sync + 'static,
+        I: Serialize,
+        E: std::error::Error + Send + Sync + 'static,
+    {
+        let dataset_name = dataset_name.into();
+        let mut chunks = Box::pin(stream.chunks_timeout(1000, StdDuration::from_secs(1)));
+        let mut ingest_status = IngestStatus::default();
+        while let Some(events) = chunks.next().await {
+            let events: StdResult<Vec<I>, E> = events.into_iter().collect();
+            match events {
+                Ok(events) => {
+                    let new_ingest_status = self.ingest(dataset_name.clone(), events).await?;
+                    ingest_status = ingest_status + new_ingest_status
+                }
+                Err(e) => return Err(Error::IngestStreamError(Box::new(e))),
+            }
+        }
+        Ok(ingest_status)
     }
 }
 

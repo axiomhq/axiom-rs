@@ -56,7 +56,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     client.datasets.create("my-dataset", "").await?;
 
     client
-        .datasets
         .ingest(
             "my-dataset",
             vec![json!({

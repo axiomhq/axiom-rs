@@ -104,7 +104,6 @@ async fn test_datasets_impl(ctx: &mut Context) {
 ]"#;
     let ingest_status = ctx
         .client
-        .datasets
         .ingest_raw(
             &ctx.dataset.name,
             PAYLOAD,
@@ -141,12 +140,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
             "agent": "Debian APT-HTTP/1.3 (0.8.16~exp12ubuntu10.21)"
         }),
     ];
-    let ingest_status = ctx
-        .client
-        .datasets
-        .ingest(&ctx.dataset.name, &events)
-        .await
-        .unwrap();
+    let ingest_status = ctx.client.ingest(&ctx.dataset.name, &events).await.unwrap();
     assert_eq!(ingest_status.ingested, 2);
     assert_eq!(ingest_status.failed, 0);
     assert_eq!(ingest_status.failures.len(), 0);
@@ -155,7 +149,6 @@ async fn test_datasets_impl(ctx: &mut Context) {
     let stream = futures_util::stream::iter(events.clone());
     let ingest_status = ctx
         .client
-        .datasets
         .ingest_stream(&ctx.dataset.name, stream)
         .await
         .unwrap();
@@ -167,7 +160,6 @@ async fn test_datasets_impl(ctx: &mut Context) {
     let stream = futures_util::stream::iter(events).cycle().take(4321);
     let ingest_status = ctx
         .client
-        .datasets
         .ingest_stream(&ctx.dataset.name, stream)
         .await
         .unwrap();

@@ -300,11 +300,7 @@ mod test {
             .with_token("xapt-nope")
             .build()?;
 
-        match client
-            .datasets
-            .ingest("test", vec![json!({"foo": "bar"})])
-            .await
-        {
+        match client.ingest("test", vec![json!({"foo": "bar"})]).await {
             Err(Error::RateLimitExceeded(limits)) => {
                 assert_eq!(limits.limit, 42);
                 assert_eq!(limits.remaining, 0);
