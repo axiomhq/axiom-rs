@@ -196,7 +196,7 @@ impl Client {
         let payload = payload.map_err(Error::JoinError)?;
         let payload = payload.map_err(Error::Encoding)?;
 
-        self.ingest_raw(
+        self.ingest_bytes(
             dataset_name,
             payload,
             ContentType::NdJson,
@@ -209,7 +209,7 @@ impl Client {
     /// Restrictions for field names (JSON object keys) can be reviewed here:
     /// <https://www.axiom.co/docs/usage/field-restrictions>.
     #[instrument(skip(self, payload))]
-    pub async fn ingest_raw<N, P>(
+    pub async fn ingest_bytes<N, P>(
         &self,
         dataset_name: N,
         payload: P,

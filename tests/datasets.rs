@@ -104,7 +104,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
 ]"#;
     let ingest_status = ctx
         .client
-        .ingest_raw(
+        .ingest_bytes(
             &ctx.dataset.name,
             PAYLOAD,
             ContentType::Json,
