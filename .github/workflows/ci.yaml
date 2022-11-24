@@ -1,6 +1,6 @@
 name: CI
 
-on: 
+on:
   pull_request:
     branches:
       - main
@@ -81,6 +81,25 @@ jobs:
         with:
           command: test
           args: ${{ matrix.flags }} -- --test-threads 1
+  build_examples:
+    name: Build examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install rust
+        uses: actions-rs/toolchain@v1
+      - name: Run cargo build --examples
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --examples
   publish_on_crates_io:
     name: Publish on crates.io
     runs-on: ubuntu-latest
@@ -89,6 +108,7 @@ jobs:
       - rust_fmt_check
       - clippy_check
       - test
+      - build_examples
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
