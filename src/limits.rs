@@ -132,7 +132,7 @@ impl Limits {
                 .get(header_reset)
                 .and_then(|limit| limit.to_str().ok())
                 .and_then(|limit| limit.parse::<i64>().ok())
-                .map(|limit| Utc.timestamp(limit, 0))
+                .and_then(|limit| Utc.timestamp_opt(limit, 0).single())
                 .ok_or(InvalidHeaderError::Reset)?,
         })
     }
