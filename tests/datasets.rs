@@ -177,6 +177,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
     assert!(info.fields.len() > 0);
 
     // Run a query and make sure we see some results.
+    #[allow(deprecated)]
     let simple_query_result = ctx
         .client
         .query_legacy(
@@ -254,6 +255,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
         }],
         ..Default::default()
     };
+    #[allow(deprecated)]
     let query_result = ctx
         .client
         .query_legacy(
@@ -281,11 +283,9 @@ async fn test_datasets_impl(ctx: &mut Context) {
     assert_eq!(2164, agg.value);
 
     // Trim the dataset down to a minimum.
-    let trim_result = ctx
-        .client
+    ctx.client
         .datasets
         .trim(&ctx.dataset.name, Duration::seconds(1))
         .await
         .unwrap();
-    assert_eq!(0, trim_result.blocks_deleted); // No blocks to trim in this test.
 }
