@@ -273,6 +273,7 @@ impl Add for IngestStatus {
         let mut failures = self.failures;
         failures.extend(other.failures);
 
+        #[allow(deprecated)]
         Self {
             ingested: self.ingested + other.ingested,
             failed: self.failed + other.failed,

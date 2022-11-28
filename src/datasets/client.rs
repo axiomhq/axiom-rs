@@ -93,6 +93,7 @@ impl Client {
     /// The duration can either be a [`std::time::Duration`] or a
     /// [`chrono::Duration`].
     #[instrument(skip(self))]
+    #[allow(deprecated)]
     pub async fn trim<N, D>(&self, dataset_name: N, duration: D) -> Result<TrimResult>
     where
         N: Into<String> + FmtDebug,
