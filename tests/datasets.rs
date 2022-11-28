@@ -104,8 +104,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
 ]"#;
     let ingest_status = ctx
         .client
-        .datasets
-        .ingest_raw(
+        .ingest_bytes(
             &ctx.dataset.name,
             PAYLOAD,
             ContentType::Json,
@@ -141,12 +140,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
             "agent": "Debian APT-HTTP/1.3 (0.8.16~exp12ubuntu10.21)"
         }),
     ];
-    let ingest_status = ctx
-        .client
-        .datasets
-        .ingest(&ctx.dataset.name, &events)
-        .await
-        .unwrap();
+    let ingest_status = ctx.client.ingest(&ctx.dataset.name, &events).await.unwrap();
     assert_eq!(ingest_status.ingested, 2);
     assert_eq!(ingest_status.failed, 0);
     assert_eq!(ingest_status.failures.len(), 0);
@@ -155,7 +149,6 @@ async fn test_datasets_impl(ctx: &mut Context) {
     let stream = futures_util::stream::iter(events.clone());
     let ingest_status = ctx
         .client
-        .datasets
         .ingest_stream(&ctx.dataset.name, stream)
         .await
         .unwrap();
@@ -167,7 +160,6 @@ async fn test_datasets_impl(ctx: &mut Context) {
     let stream = futures_util::stream::iter(events).cycle().take(4321);
     let ingest_status = ctx
         .client
-        .datasets
         .ingest_stream(&ctx.dataset.name, stream)
         .await
         .unwrap();
@@ -185,17 +177,17 @@ async fn test_datasets_impl(ctx: &mut Context) {
     assert!(info.fields.len() > 0);
 
     // Run a query and make sure we see some results.
+    #[allow(deprecated)]
     let simple_query_result = ctx
         .client
-        .datasets
-        .query(
+        .query_legacy(
             &ctx.dataset.name,
-            Query {
+            LegacyQuery {
                 start_time: Some(Utc::now() - Duration::minutes(1)),
                 end_time: Some(Utc::now()),
                 ..Default::default()
             },
-            Some(QueryOptions {
+            Some(LegacyQueryOptions {
                 save_as_kind: QueryKind::Analytics,
                 ..Default::default()
             }),
@@ -211,10 +203,9 @@ async fn test_datasets_impl(ctx: &mut Context) {
     // Run another query but using APL.
     let apl_query_result = ctx
         .client
-        .datasets
-        .apl_query(
+        .query(
             format!("['{}']", ctx.dataset.name),
-            AplOptions {
+            QueryOptions {
                 save: true,
                 ..Default::default()
             },
@@ -228,7 +219,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
     assert_eq!(1000, apl_query_result.matches.len());
 
     // Run a more complex query.
-    let query = Query {
+    let query = LegacyQuery {
         start_time: Some(Utc::now() - Duration::minutes(1)),
         end_time: Some(Utc::now()),
         aggregations: vec![Aggregation {
@@ -264,13 +255,13 @@ async fn test_datasets_impl(ctx: &mut Context) {
         }],
         ..Default::default()
     };
+    #[allow(deprecated)]
     let query_result = ctx
         .client
-        .datasets
-        .query(
+        .query_legacy(
             &ctx.dataset.name,
             query,
-            QueryOptions {
+            LegacyQueryOptions {
                 save_as_kind: QueryKind::Analytics,
                 ..Default::default()
             },
@@ -292,11 +283,9 @@ async fn test_datasets_impl(ctx: &mut Context) {
     assert_eq!(2164, agg.value);
 
     // Trim the dataset down to a minimum.
-    let trim_result = ctx
-        .client
+    ctx.client
         .datasets
         .trim(&ctx.dataset.name, Duration::seconds(1))
         .await
         .unwrap();
-    assert_eq!(0, trim_result.blocks_deleted); // No blocks to trim in this test.
 }

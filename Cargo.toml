@@ -34,13 +34,15 @@ tracing = { version = "0.1" }
 tokio-stream = "0.1"
 
 [dev-dependencies]
-tokio = { version = "1", features = ["rt", "macros"] }
+tokio = { version = "1", features = ["full"] }
 async-std = { version = "1", features = ["attributes"] }
 serde_test = "1"
 test-context = "0.1"
 async-trait = "0.1"
 futures-util = "0.3"
 httpmock = "0.6"
+structopt = "0.3"
+tracing-subscriber = { version = "0.3", features = ["ansi", "env-filter"] }
 
 [features]
 default = ["tokio", "default-tls"]

@@ -100,13 +100,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mut buf = Vec::new();
                 stdin().read_to_end(&mut buf).await?;
                 let ingest_status = client
-                    .datasets
-                    .ingest_raw(&name, buf, content_type, content_encoding)
+                    .ingest_bytes(&name, buf, content_type, content_encoding)
                     .await?;
                 println!("{:?}", ingest_status);
             }
             Datasets::Query { apl } => {
-                let result = client.datasets.apl_query(apl, None).await?;
+                let result = client.query(apl, None).await?;
                 println!("{:?}", result);
             }
         },

@@ -73,12 +73,26 @@ impl From<backoff::Error<reqwest::Error>> for Error {
 pub struct AxiomError {
     #[serde(skip)]
     pub status: u16,
+    #[serde(skip)]
+    pub method: http::Method,
+    #[serde(skip)]
+    pub path: String,
     pub message: Option<String>,
 }
 
 impl AxiomError {
-    pub(crate) fn new(status: u16, message: Option<String>) -> Self {
-        Self { status, message }
+    pub(crate) fn new(
+        status: u16,
+        method: http::Method,
+        path: String,
+        message: Option<String>,
+    ) -> Self {
+        Self {
+            status,
+            method,
+            path,
+            message,
+        }
     }
 }
 
@@ -87,9 +101,17 @@ impl std::error::Error for AxiomError {}
 impl fmt::Display for AxiomError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(msg) = self.message.as_ref() {
-            write!(f, "Error {}: {}", self.status, msg)
+            write!(
+                f,
+                "Received {} on {} {}: {}",
+                self.status, self.method, self.path, msg
+            )
         } else {
-            write!(f, "Error {}", self.status)
+            write!(
+                f,
+                "Received {} on {} {})",
+                self.method, self.path, self.status
+            )
         }
     }
 }

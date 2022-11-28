@@ -33,7 +33,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .buffered(100);
     Client::new()?
-        .datasets
         .try_ingest_stream(dataset_name, stream)
         .await?;
     Ok(())

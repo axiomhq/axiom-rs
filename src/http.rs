@@ -118,7 +118,7 @@ impl Client {
             })
         })
         .await
-        .map(Response::new)
+        .map(|res| Response::new(res, method, path.as_ref().to_string()))
         .map_err(Error::Http)?;
 
         self.update_limits(&res.limits).await;
@@ -208,13 +208,20 @@ impl Client {
 
 pub(crate) struct Response {
     inner: reqwest::Response,
+    method: http::Method,
+    path: String,
     limits: Option<Limit>,
 }
 
 impl Response {
-    pub(crate) fn new(inner: reqwest::Response) -> Self {
+    pub(crate) fn new(inner: reqwest::Response, method: http::Method, path: String) -> Self {
         let limits = Limit::try_from(&inner);
-        Self { inner, limits }
+        Self {
+            inner,
+            method,
+            path,
+            limits,
+        }
     }
 
     pub(crate) async fn json<T: DeserializeOwned>(self) -> Result<T> {
@@ -238,11 +245,18 @@ impl Response {
             let e = match self.inner.json::<AxiomError>().await {
                 Ok(mut e) => {
                     e.status = status.as_u16();
+                    e.method = self.method;
+                    e.path = self.path;
                     Error::Axiom(e)
                 }
                 Err(_e) => {
                     // Decoding failed, we still want an AxiomError
-                    Error::Axiom(AxiomError::new(status.as_u16(), None))
+                    Error::Axiom(AxiomError::new(
+                        status.as_u16(),
+                        self.method,
+                        self.path,
+                        None,
+                    ))
                 }
             };
             return Err(e);
@@ -253,12 +267,6 @@ impl Response {
 
     pub(crate) fn headers(&self) -> &header::HeaderMap {
         self.inner.headers()
-    }
-}
-
-impl From<reqwest::Response> for Response {
-    fn from(inner: reqwest::Response) -> Self {
-        Self::new(inner)
     }
 }
 
@@ -300,11 +308,7 @@ mod test {
             .with_token("xapt-nope")
             .build()?;
 
-        match client
-            .datasets
-            .ingest("test", vec![json!({"foo": "bar"})])
-            .await
-        {
+        match client.ingest("test", vec![json!({"foo": "bar"})]).await {
             Err(Error::RateLimitExceeded(limits)) => {
                 assert_eq!(limits.limit, 42);
                 assert_eq!(limits.remaining, 0);
@@ -341,7 +345,7 @@ mod test {
             .with_token("xapt-nope")
             .build()?;
 
-        match client.datasets.apl_query("test | count", None).await {
+        match client.query("test | count", None).await {
             Err(Error::RateLimitExceeded(limits)) => {
                 assert_eq!(limits.limit, 42);
                 assert_eq!(limits.remaining, 0);
