@@ -70,6 +70,10 @@ impl Client {
 
     /// Retrieve the information of the dataset identified by its id.
     #[instrument(skip(self))]
+    #[deprecated(
+        since = "0.8.0",
+        note = "The info method will go away in the future, but come back in a different version."
+    )]
     pub async fn info<N>(&self, dataset_name: N) -> Result<Info>
     where
         N: Into<String> + FmtDebug,
