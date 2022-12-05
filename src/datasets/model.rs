@@ -156,6 +156,10 @@ pub struct Stat {
     /// The unique name of the dataset.
     pub name: String,
     /// The number of blocks of the dataset.
+    #[deprecated(
+        since = "0.8.0",
+        note = "This field will be removed in a future version."
+    )]
     pub num_blocks: u64,
     /// The number of events of the dataset.
     pub num_events: u64,
@@ -165,11 +169,19 @@ pub struct Stat {
     pub input_bytes: u64,
     /// The amount of data stored in the dataset formatted in a human
     /// readable format.
+    #[deprecated(
+        since = "0.8.0",
+        note = "This field will be removed in a future version."
+    )]
     pub input_bytes_human: String,
     /// The amount of compressed data stored in the dataset.
     pub compressed_bytes: u64,
     /// The amount of compressed data stored in the
     /// dataset formatted in a human readable format.
+    #[deprecated(
+        since = "0.8.0",
+        note = "This field will be removed in a future version."
+    )]
     pub compressed_bytes_human: String,
     /// The time of the oldest event stored in the dataset.
     pub min_time: Option<DateTime<Utc>>,
@@ -177,6 +189,10 @@ pub struct Stat {
     pub max_time: Option<DateTime<Utc>>,
     /// The ID of the user who created the dataset.
     #[serde(rename = "who")]
+    #[deprecated(
+        since = "0.8.0",
+        note = "This field will be removed in a future version."
+    )]
     pub created_by: Option<String>,
     /// The time the dataset was created at.
     #[serde(rename = "created")]
@@ -209,6 +225,10 @@ impl TrimRequest {
 }
 
 /// The result of a trim operation.
+#[deprecated(
+    since = "0.8.0",
+    note = "The trim response will be removed in a future version."
+)]
 #[derive(Deserialize, Debug)]
 pub struct TrimResult {
     /// The amount of blocks deleted by the trim operation.
@@ -233,8 +253,16 @@ pub struct IngestStatus {
     /// Number of bytes processed.
     pub processed_bytes: u64,
     /// Amount of blocks created.
+    #[deprecated(
+        since = "0.8.0",
+        note = "This field will be removed in a future version."
+    )]
     pub blocks_created: u32,
     /// The length of the Write-Ahead Log.
+    #[deprecated(
+        since = "0.8.0",
+        note = "This field will be removed in a future version."
+    )]
     pub wal_length: u32,
 }
 
@@ -245,6 +273,7 @@ impl Add for IngestStatus {
         let mut failures = self.failures;
         failures.extend(other.failures);
 
+        #[allow(deprecated)]
         Self {
             ingested: self.ingested + other.ingested,
             failed: self.failed + other.failed,
