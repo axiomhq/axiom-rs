@@ -74,9 +74,9 @@ jobs:
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         env:
-          AXIOM_URL: ${{ secrets.TESTING_CLOUD_DEV_DEPLOYMENT_URL }}
-          AXIOM_TOKEN: ${{ secrets.TESTING_CLOUD_DEV_ACCESS_TOKEN }}
-          AXIOM_ORG_ID: ${{ secrets.TESTING_CLOUD_DEV_ORG_ID }}
+          AXIOM_URL: ${{ secrets.TESTING_DEV_APP_URL }}
+          AXIOM_TOKEN: ${{ secrets.TESTING_DEV_TOKEN }}
+          AXIOM_ORG_ID: ${{ secrets.TESTING_DEV_ORG_ID }}
           AXIOM_DATASET_SUFFIX: ${{ github.run_id }}
         with:
           command: test
