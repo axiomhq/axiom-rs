@@ -4,7 +4,7 @@
 <div align="center">
 
 [![docs.rs](https://docs.rs/axiom-rs/badge.svg)](https://docs.rs/axiom-rs/)
-[![build](https://img.shields.io/github/workflow/status/axiomhq/axiom-rs/CI?ghcache=unused)](https://github.com/axiomhq/axiom-rs/actions?query=workflow%3ACI)
+[![build](https://img.shields.io/github/actions/workflow/status/axiomhq/axiom-rs/ci.yaml?branch=main&ghcache=unused)](https://github.com/axiomhq/axiom-rs/actions?query=workflow%3ACI)
 [![crates.io](https://img.shields.io/crates/v/axiom-rs.svg)](https://crates.io/crates/axiom-rs)
 [![License](https://img.shields.io/crates/l/axiom-rs)](LICENSE-APACHE)
 
