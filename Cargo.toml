@@ -1,6 +1,6 @@
 [package]
 name = "axiom-rs"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Arne Bahlo <arne@axiom.co>"]
 edition = "2018"
 rust-version = "1.60"
