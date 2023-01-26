@@ -15,7 +15,7 @@ include = ["src/**/*.rs", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 resolver = "2"
 
 [dependencies]
-reqwest = { version = "0.11", features = ["json", "stream", "gzip", "blocking"] }
+reqwest = { version = "0.11", default-features = false, features = ["json", "stream", "gzip", "blocking"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
