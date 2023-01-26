@@ -59,7 +59,7 @@ jobs:
         include:
           - runtime: Tokio
           - runtime: async-std
-            flags: --no-default-features --features async-std
+            flags: --no-default-features --features async-std,default-tls
     steps:
       - uses: actions/checkout@v3
       - uses: actions/cache@v3
