@@ -82,17 +82,16 @@ async fn test_cursor_impl(ctx: &mut Context) {
 
     // iterate 1000 times
     for i in 0..1000 {
-        events.push(
-            json!({
-                "_time": (Utc::now() + Duration::seconds(i)),
-                "remote_ip": "93.180.71.2",
-                "remote_user": "-",
-                "request": "GET /downloads/product_1 HTTP/1.1",
-                "response": 304,
-                "bytes": 0,
-                "referrer": "-",
-                "agent": "Debian APT-HTTP/1.3 (0.8.16~exp12ubuntu10.21)"
-            }));
+        events.push(json!({
+            "_time": (Utc::now() + Duration::seconds(i)),
+            "remote_ip": "93.180.71.2",
+            "remote_user": "-",
+            "request": "GET /downloads/product_1 HTTP/1.1",
+            "response": 304,
+            "bytes": 0,
+            "referrer": "-",
+            "agent": "Debian APT-HTTP/1.3 (0.8.16~exp12ubuntu10.21)"
+        }));
     }
 
     let ingest_status = ctx.client.ingest(&ctx.dataset.name, &events).await.unwrap();
@@ -125,7 +124,7 @@ async fn test_cursor_impl(ctx: &mut Context) {
             QueryOptions {
                 start_time: Some(apl_query_result.matches[500].time),
                 end_time: Some(Utc::now() + Duration::minutes(20)),
-                include_cursor: Some(true),
+                include_cursor: true,
                 cursor: Some(mid_row_id.to_string()),
                 save: true,
                 ..Default::default()
