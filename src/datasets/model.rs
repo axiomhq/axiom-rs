@@ -320,6 +320,8 @@ pub struct Query {
     pub apl: String,
     pub start_time: Option<DateTime<Utc>>,
     pub end_time: Option<DateTime<Utc>>,
+    pub cursor: Option<String>,
+    pub include_cursor: bool,
 }
 
 // QueryParams is the part of `QueryOptions` that is added to the request url.
@@ -339,6 +341,11 @@ pub struct QueryOptions {
     pub start_time: Option<DateTime<Utc>>,
     // The end time of the query.
     pub end_time: Option<DateTime<Utc>>,
+    // The cursor for use in pagination.
+    pub cursor: Option<String>,
+    // Specifies whether the event that matches the cursor should be
+    // included in the result.
+    pub include_cursor: bool,
 
     // Omits the query cache.
     pub no_cache: bool,
@@ -358,6 +365,8 @@ impl Default for QueryOptions {
         QueryOptions {
             start_time: None,
             end_time: None,
+            cursor: None,
+            include_cursor: false,
             no_cache: false,
             save: false,
             format: AplResultFormat::Legacy,
