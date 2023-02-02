@@ -343,7 +343,7 @@ pub struct QueryOptions {
     pub end_time: Option<DateTime<Utc>>,
     // The cursor for use in pagination.
     pub cursor: Option<String>,
-    // include_cursor specifies whether the event that matches the cursor should be
+    // Specifies whether the event that matches the cursor should be
     // included in the result.
     pub include_cursor: Option<bool>,
 
