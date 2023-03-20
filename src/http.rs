@@ -1,18 +1,14 @@
-#[cfg(feature = "async-std")]
-use async_std::sync::Mutex;
 use backoff::{future::retry, ExponentialBackoffBuilder};
 use bytes::Bytes;
 use http::header;
 pub(crate) use http::HeaderMap;
 use serde::{de::DeserializeOwned, Serialize};
-use std::{env, sync::Arc, time::Duration};
-#[cfg(feature = "tokio")]
-use tokio::sync::Mutex;
+use std::{env, time::Duration};
 use url::Url;
 
 use crate::{
     error::{AxiomError, Error, Result},
-    limits::{Limit, Limits},
+    limits::Limit,
 };
 
 static USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
@@ -23,8 +19,6 @@ static USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_V
 pub(crate) struct Client {
     base_url: Url,
     inner: reqwest::Client,
-    ingest_limit: Arc<Mutex<Option<Limits>>>,
-    query_limit: Arc<Mutex<Option<Limits>>>,
 }
 
 #[derive(Clone)]
@@ -65,8 +59,6 @@ impl Client {
         Ok(Self {
             base_url,
             inner: http_client,
-            ingest_limit: Arc::new(Mutex::new(None)),
-            query_limit: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -118,23 +110,7 @@ impl Client {
         .map(|res| Response::new(res, method, path.as_ref().to_string()))
         .map_err(Error::Http)?;
 
-        self.update_limits(&res.limits).await;
-
         Ok(res)
-    }
-
-    async fn update_limits(&self, limit: &Option<Limit>) {
-        match limit {
-            Some(Limit::Ingest(limit)) => {
-                let mut ingest_limit = self.ingest_limit.lock().await;
-                ingest_limit.replace(limit.clone());
-            }
-            Some(Limit::Query(limit)) => {
-                let mut query_limit = self.query_limit.lock().await;
-                query_limit.replace(limit.clone());
-            }
-            _ => {}
-        };
     }
 
     pub(crate) async fn get<S>(&self, path: S) -> Result<Response>
@@ -233,12 +209,18 @@ impl Response {
     pub(crate) async fn check_error(self) -> Result<Response> {
         let status = self.inner.status();
         if !status.is_success() {
-            if status == http::StatusCode::TOO_MANY_REQUESTS {
-                if let Some(limits) = self.limits {
-                    return Err(Error::RateLimitExceeded(limits.into_inner()));
+            // Check if we hit some limits
+            match self.limits {
+                Some(Limit::Rate(scope, limits)) => {
+                    return Err(Error::RateLimitExceeded { scope, limits });
                 }
+                Some(Limit::Query(limit)) => {
+                    return Err(Error::QueryLimitExceeded(limit));
+                }
+                None => {}
             }
 
+            // Try to decode the error
             let e = match self.inner.json::<AxiomError>().await {
                 Ok(mut e) => {
                     e.status = status.as_u16();

@@ -42,8 +42,10 @@ pub enum Error {
     #[cfg(feature = "tokio")]
     #[error("Failed to join thread: {0}")]
     JoinError(tokio::task::JoinError),
-    #[error("Rate limit exceeded: {0}")]
-    RateLimitExceeded(Limits),
+    #[error("Rate limit exceeded for the {scope} scope: {limits}")]
+    RateLimitExceeded { scope: String, limits: Limits },
+    #[error("Query limit exceeded: {0}")]
+    QueryLimitExceeded(Limits),
     #[error("Invalid URL: {0}")]
     InvalidUrl(url::ParseError),
     #[error("Error in ingest stream: {0}")]
