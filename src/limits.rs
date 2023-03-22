@@ -5,12 +5,14 @@ use http::header;
 use std::fmt::Display;
 use thiserror::Error;
 
-pub(crate) const STATUS_QUERY_LIMIT_EXCEEDED: u16 = 430;
 pub(crate) const HEADER_QUERY_LIMIT: &str = "X-QueryLimit-Limit";
 pub(crate) const HEADER_QUERY_REMAINING: &str = "X-QueryLimit-Remaining";
 pub(crate) const HEADER_QUERY_RESET: &str = "X-QueryLimit-Reset";
 
-pub(crate) const STATUS_RATE_LIMIT_EXCEEDED: u16 = 429;
+pub(crate) const HEADER_INGEST_LIMIT: &str = "X-IngestLimit-Limit";
+pub(crate) const HEADER_INGEST_REMAINING: &str = "X-IngestLimit-Remaining";
+pub(crate) const HEADER_INGEST_RESET: &str = "X-IngestLimit-Reset";
+
 pub(crate) const HEADER_RATE_SCOPE: &str = "X-RateLimit-Scope";
 pub(crate) const HEADER_RATE_LIMIT: &str = "X-RateLimit-Limit";
 pub(crate) const HEADER_RATE_REMAINING: &str = "X-RateLimit-Remaining";
@@ -28,6 +30,7 @@ pub(crate) enum InvalidHeaderError {
 
 #[derive(Debug, Clone)]
 pub(crate) enum Limit {
+    Ingest(Limits),
     Query(Limits),
     Rate(String, Limits),
 }
@@ -35,7 +38,7 @@ pub(crate) enum Limit {
 impl Limit {
     pub(crate) fn try_from(response: &reqwest::Response) -> Option<Self> {
         match response.status().as_u16() {
-            STATUS_RATE_LIMIT_EXCEEDED => {
+            429 => {
                 // Rate limit
                 let scope = response
                     .headers()
@@ -53,16 +56,27 @@ impl Limit {
                     .zip(limits)
                     .map(|(scope, limits)| Limit::Rate(scope.to_string(), limits))
             }
-            STATUS_QUERY_LIMIT_EXCEEDED => {
-                // Query limit
-                Limits::from_headers(
+            430 => {
+                // Query or ingest limit
+                let query_limit = Limits::from_headers(
                     response.headers(),
                     HEADER_QUERY_LIMIT,
                     HEADER_QUERY_REMAINING,
                     HEADER_QUERY_RESET,
                 )
                 .map(Limit::Query)
-                .ok()
+                .ok();
+                let ingest_limit = Limits::from_headers(
+                    response.headers(),
+                    HEADER_INGEST_LIMIT,
+                    HEADER_INGEST_REMAINING,
+                    HEADER_INGEST_RESET,
+                )
+                .map(Limit::Ingest)
+                .ok();
+
+                // Can't have both
+                query_limit.or(ingest_limit)
             }
             _ => None,
         }

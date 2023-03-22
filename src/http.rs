@@ -217,6 +217,9 @@ impl Response {
                 Some(Limit::Query(limit)) => {
                     return Err(Error::QueryLimitExceeded(limit));
                 }
+                Some(Limit::Ingest(limit)) => {
+                    return Err(Error::IngestLimitExceeded(limit));
+                }
                 None => {}
             }
 
@@ -264,6 +267,43 @@ mod test {
     use crate::{limits, Client, Error};
 
     #[tokio::test]
+    async fn test_ingest_limit_exceeded() -> Result<(), Box<dyn std::error::Error>> {
+        let expires_after = Duration::seconds(1);
+        let tomorrow = Utc::now() + expires_after;
+
+        let server = MockServer::start();
+        let rate_mock = server.mock(|when, then| {
+            when.method(POST).path("/v1/datasets/test/ingest");
+            then.status(430)
+                .json_body(json!({ "message": "ingest limit exceeded" }))
+                .header(limits::HEADER_INGEST_LIMIT, "42")
+                .header(limits::HEADER_INGEST_REMAINING, "0")
+                .header(
+                    limits::HEADER_INGEST_RESET,
+                    format!("{}", tomorrow.timestamp()),
+                );
+        });
+
+        let client = Client::builder()
+            .no_env()
+            .with_url(server.base_url())
+            .with_token("xapt-nope")
+            .build()?;
+
+        match client.ingest("test", vec![json!({"foo": "bar"})]).await {
+            Err(Error::IngestLimitExceeded(limits)) => {
+                assert_eq!(limits.limit, 42);
+                assert_eq!(limits.remaining, 0);
+                assert_eq!(limits.reset.timestamp(), tomorrow.timestamp());
+            }
+            res => panic!("Expected ingest limit error, got {:?}", res),
+        };
+
+        rate_mock.assert_hits_async(1).await;
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn test_query_limit_exceeded() -> Result<(), Box<dyn std::error::Error>> {
         let expires_after = Duration::seconds(1);
         let tomorrow = Utc::now() + expires_after;
@@ -272,7 +312,7 @@ mod test {
         let rate_mock = server.mock(|when, then| {
             when.method(POST).path("/v1/datasets/_apl");
             then.status(430)
-                .json_body(json!({ "message": "rate limit exceeded" }))
+                .json_body(json!({ "message": "query limit exceeded" }))
                 .header(limits::HEADER_QUERY_LIMIT, "42")
                 .header(limits::HEADER_QUERY_REMAINING, "0")
                 .header(

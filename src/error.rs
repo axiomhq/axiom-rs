@@ -46,6 +46,8 @@ pub enum Error {
     RateLimitExceeded { scope: String, limits: Limits },
     #[error("Query limit exceeded: {0}")]
     QueryLimitExceeded(Limits),
+    #[error("Ingest limit exceeded: {0}")]
+    IngestLimitExceeded(Limits),
     #[error("Invalid URL: {0}")]
     InvalidUrl(url::ParseError),
     #[error("Error in ingest stream: {0}")]
