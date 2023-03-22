@@ -1,18 +1,14 @@
-#[cfg(feature = "async-std")]
-use async_std::sync::Mutex;
 use backoff::{future::retry, ExponentialBackoffBuilder};
 use bytes::Bytes;
 use http::header;
 pub(crate) use http::HeaderMap;
 use serde::{de::DeserializeOwned, Serialize};
-use std::{env, sync::Arc, time::Duration};
-#[cfg(feature = "tokio")]
-use tokio::sync::Mutex;
+use std::{env, time::Duration};
 use url::Url;
 
 use crate::{
     error::{AxiomError, Error, Result},
-    limits::{Limit, Limits},
+    limits::Limit,
 };
 
 static USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
@@ -23,8 +19,6 @@ static USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_V
 pub(crate) struct Client {
     base_url: Url,
     inner: reqwest::Client,
-    ingest_limit: Arc<Mutex<Option<Limits>>>,
-    query_limit: Arc<Mutex<Option<Limits>>>,
 }
 
 #[derive(Clone)]
@@ -65,8 +59,6 @@ impl Client {
         Ok(Self {
             base_url,
             inner: http_client,
-            ingest_limit: Arc::new(Mutex::new(None)),
-            query_limit: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -118,23 +110,7 @@ impl Client {
         .map(|res| Response::new(res, method, path.as_ref().to_string()))
         .map_err(Error::Http)?;
 
-        self.update_limits(&res.limits).await;
-
         Ok(res)
-    }
-
-    async fn update_limits(&self, limit: &Option<Limit>) {
-        match limit {
-            Some(Limit::Ingest(limit)) => {
-                let mut ingest_limit = self.ingest_limit.lock().await;
-                ingest_limit.replace(limit.clone());
-            }
-            Some(Limit::Query(limit)) => {
-                let mut query_limit = self.query_limit.lock().await;
-                query_limit.replace(limit.clone());
-            }
-            _ => {}
-        };
     }
 
     pub(crate) async fn get<S>(&self, path: S) -> Result<Response>
@@ -233,12 +209,21 @@ impl Response {
     pub(crate) async fn check_error(self) -> Result<Response> {
         let status = self.inner.status();
         if !status.is_success() {
-            if status == http::StatusCode::TOO_MANY_REQUESTS {
-                if let Some(limits) = self.limits {
-                    return Err(Error::RateLimitExceeded(limits.into_inner()));
+            // Check if we hit some limits
+            match self.limits {
+                Some(Limit::Rate(scope, limits)) => {
+                    return Err(Error::RateLimitExceeded { scope, limits });
                 }
+                Some(Limit::Query(limit)) => {
+                    return Err(Error::QueryLimitExceeded(limit));
+                }
+                Some(Limit::Ingest(limit)) => {
+                    return Err(Error::IngestLimitExceeded(limit));
+                }
+                None => {}
             }
 
+            // Try to decode the error
             let e = match self.inner.json::<AxiomError>().await {
                 Ok(mut e) => {
                     e.status = status.as_u16();
@@ -289,8 +274,8 @@ mod test {
         let server = MockServer::start();
         let rate_mock = server.mock(|when, then| {
             when.method(POST).path("/v1/datasets/test/ingest");
-            then.status(429)
-                .json_body(json!({ "message": "rate limit exceeded" }))
+            then.status(430)
+                .json_body(json!({ "message": "ingest limit exceeded" }))
                 .header(limits::HEADER_INGEST_LIMIT, "42")
                 .header(limits::HEADER_INGEST_REMAINING, "0")
                 .header(
@@ -306,7 +291,7 @@ mod test {
             .build()?;
 
         match client.ingest("test", vec![json!({"foo": "bar"})]).await {
-            Err(Error::RateLimitExceeded(limits)) => {
+            Err(Error::IngestLimitExceeded(limits)) => {
                 assert_eq!(limits.limit, 42);
                 assert_eq!(limits.remaining, 0);
                 assert_eq!(limits.reset.timestamp(), tomorrow.timestamp());
@@ -326,8 +311,8 @@ mod test {
         let server = MockServer::start();
         let rate_mock = server.mock(|when, then| {
             when.method(POST).path("/v1/datasets/_apl");
-            then.status(429)
-                .json_body(json!({ "message": "rate limit exceeded" }))
+            then.status(430)
+                .json_body(json!({ "message": "query limit exceeded" }))
                 .header(limits::HEADER_QUERY_LIMIT, "42")
                 .header(limits::HEADER_QUERY_REMAINING, "0")
                 .header(
@@ -343,7 +328,7 @@ mod test {
             .build()?;
 
         match client.query("test | count", None).await {
-            Err(Error::RateLimitExceeded(limits)) => {
+            Err(Error::QueryLimitExceeded(limits)) => {
                 assert_eq!(limits.limit, 42);
                 assert_eq!(limits.remaining, 0);
                 assert_eq!(limits.reset.timestamp(), tomorrow.timestamp());
@@ -381,7 +366,8 @@ mod test {
             .build()?;
 
         match client.datasets.list().await {
-            Err(Error::RateLimitExceeded(limits)) => {
+            Err(Error::RateLimitExceeded { scope, limits }) => {
+                assert_eq!(scope, "user");
                 assert_eq!(limits.limit, 42);
                 assert_eq!(limits.remaining, 0);
                 assert_eq!(limits.reset.timestamp(), tomorrow.timestamp());

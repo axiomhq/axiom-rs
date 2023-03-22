@@ -30,56 +30,55 @@ pub(crate) enum InvalidHeaderError {
 
 #[derive(Debug, Clone)]
 pub(crate) enum Limit {
-    Query(Limits),
     Ingest(Limits),
+    Query(Limits),
     Rate(String, Limits),
 }
 
 impl Limit {
-    pub(crate) fn into_inner(self) -> Limits {
-        match self {
-            Limit::Query(l) => l,
-            Limit::Ingest(l) => l,
-            Limit::Rate(_, l) => l,
-        }
-    }
-
     pub(crate) fn try_from(response: &reqwest::Response) -> Option<Self> {
-        let path = response.url().path();
-        if path.ends_with("/ingest") {
-            Limits::from_headers(
-                response.headers(),
-                HEADER_INGEST_LIMIT,
-                HEADER_INGEST_REMAINING,
-                HEADER_INGEST_RESET,
-            )
-            .map(Limit::Ingest)
-            .ok()
-        } else if path.ends_with("/query") || path.ends_with("/_apl") {
-            Limits::from_headers(
-                response.headers(),
-                HEADER_QUERY_LIMIT,
-                HEADER_QUERY_REMAINING,
-                HEADER_QUERY_RESET,
-            )
-            .map(Limit::Query)
-            .ok()
-        } else {
-            let scope = response
-                .headers()
-                .get(HEADER_RATE_SCOPE)
-                .and_then(|limit| limit.to_str().ok());
-            let limits = Limits::from_headers(
-                response.headers(),
-                HEADER_RATE_LIMIT,
-                HEADER_RATE_REMAINING,
-                HEADER_RATE_RESET,
-            )
-            .ok();
+        match response.status().as_u16() {
+            429 => {
+                // Rate limit
+                let scope = response
+                    .headers()
+                    .get(HEADER_RATE_SCOPE)
+                    .and_then(|limit| limit.to_str().ok());
+                let limits = Limits::from_headers(
+                    response.headers(),
+                    HEADER_RATE_LIMIT,
+                    HEADER_RATE_REMAINING,
+                    HEADER_RATE_RESET,
+                )
+                .ok();
 
-            scope
-                .zip(limits)
-                .map(|(scope, limits)| Limit::Rate(scope.to_string(), limits))
+                scope
+                    .zip(limits)
+                    .map(|(scope, limits)| Limit::Rate(scope.to_string(), limits))
+            }
+            430 => {
+                // Query or ingest limit
+                let query_limit = Limits::from_headers(
+                    response.headers(),
+                    HEADER_QUERY_LIMIT,
+                    HEADER_QUERY_REMAINING,
+                    HEADER_QUERY_RESET,
+                )
+                .map(Limit::Query)
+                .ok();
+                let ingest_limit = Limits::from_headers(
+                    response.headers(),
+                    HEADER_INGEST_LIMIT,
+                    HEADER_INGEST_REMAINING,
+                    HEADER_INGEST_RESET,
+                )
+                .map(Limit::Ingest)
+                .ok();
+
+                // Can't have both
+                query_limit.or(ingest_limit)
+            }
+            _ => None,
         }
     }
 }
