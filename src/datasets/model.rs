@@ -346,18 +346,9 @@ pub struct QueryOptions {
     // Specifies whether the event that matches the cursor should be
     // included in the result.
     pub include_cursor: bool,
-
-    // Omits the query cache.
-    pub no_cache: bool,
-    /// Save the query on the server, if set to `true`. The ID of the saved query
-    /// is returned with the query result as part of the response.
-    // NOTE: The server automatically sets the query kind to "apl" for queries
-    // going // to the "/_apl" query endpoint. This allows us to set any value
-    // for the // `saveAsKind` query param. For user experience, we use a bool
-    // here instead of forcing the user to set the value to `query.APL`.
-    pub save: bool,
-    // Format specifies the format of the APL query. Defaults to Legacy.
-    pub format: AplResultFormat,
+    // Variables is an optional set of additional variables that are inserted
+    // into the APL query.
+    pub variables: Option<HashMap<String, JsonValue>>,
 }
 
 impl Default for QueryOptions {
@@ -367,9 +358,7 @@ impl Default for QueryOptions {
             end_time: None,
             cursor: None,
             include_cursor: false,
-            no_cache: false,
-            save: false,
-            format: AplResultFormat::Legacy,
+            variables: None,
         }
     }
 }
