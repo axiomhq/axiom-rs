@@ -10,6 +10,11 @@ on:
     tags:
       - "v*"
 
+# Make sure the workflow is only ever run for the latest changes in the PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   rust_fmt_check:
     name: Rustfmt check
@@ -51,15 +56,24 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
   test:
-    name: Run tests on ${{ matrix.runtime }}
+    name: Run tests with ${{ matrix.runtime }} on ${{ matrix.environment }}
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
       matrix:
+        runtime: [Tokio, async-std]
+        environment: [development, staging]
         include:
-          - runtime: Tokio
           - runtime: async-std
             flags: --no-default-features --features async-std,default-tls
+          - environment: development
+            url: TESTING_DEV_API_URL
+            token: TESTING_DEV_TOKEN
+            org_id: TESTING_DEV_ORG_ID
+          - environment: staging
+            url: TESTING_STAGING_API_URL
+            token: TESTING_STAGING_TOKEN
+            org_id: TESTING_STAGING_ORG_ID
     steps:
       - uses: actions/checkout@v3
       - uses: actions/cache@v3
@@ -74,9 +88,9 @@ jobs:
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         env:
-          AXIOM_URL: ${{ secrets.TESTING_DEV_API_URL }}
-          AXIOM_TOKEN: ${{ secrets.TESTING_DEV_TOKEN }}
-          AXIOM_ORG_ID: ${{ secrets.TESTING_DEV_ORG_ID }}
+          AXIOM_URL: ${{ secrets[matrix.url] }}
+          AXIOM_TOKEN: ${{ secrets[matrix.token] }}
+          AXIOM_ORG_ID: ${{ secrets[matrix.org_id] }}
           AXIOM_DATASET_SUFFIX: ${{ github.run_id }}
         with:
           command: test
