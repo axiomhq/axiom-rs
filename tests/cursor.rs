@@ -81,9 +81,10 @@ async fn test_cursor_impl(ctx: &mut Context) {
     let mut events = Vec::new();
 
     // iterate 1000 times
-    for i in 0..1000 {
+    let event_time = Utc::now();
+    for _ in 0..1000 {
         events.push(json!({
-            "_time": (Utc::now() + Duration::seconds(i)),
+            "_time": event_time,
             "remote_ip": "93.180.71.2",
             "remote_user": "-",
             "request": "GET /downloads/product_1 HTTP/1.1",
@@ -99,13 +100,16 @@ async fn test_cursor_impl(ctx: &mut Context) {
     assert_eq!(ingest_status.failed, 0);
     assert_eq!(ingest_status.failures.len(), 0);
 
+    let start_time = Utc::now() - Duration::minutes(1);
+    let end_time = Utc::now() + Duration::minutes(1);
+
     let apl_query_result = ctx
         .client
         .query(
             format!("['{}'] | sort by _time desc", ctx.dataset.name),
             QueryOptions {
-                start_time: Some(Utc::now() - Duration::minutes(1)),
-                end_time: Some(Utc::now() + Duration::minutes(20)),
+                start_time: Some(start_time),
+                end_time: Some(end_time),
                 save: true,
                 ..Default::default()
             },
@@ -122,8 +126,8 @@ async fn test_cursor_impl(ctx: &mut Context) {
         .query(
             format!("['{}'] | sort by _time desc", ctx.dataset.name),
             QueryOptions {
-                start_time: Some(apl_query_result.matches[500].time),
-                end_time: Some(Utc::now() + Duration::minutes(20)),
+                start_time: Some(start_time),
+                end_time: Some(end_time),
                 include_cursor: true,
                 cursor: Some(mid_row_id.to_string()),
                 save: true,
@@ -132,7 +136,6 @@ async fn test_cursor_impl(ctx: &mut Context) {
         )
         .await
         .unwrap();
-
     assert!(apl_query_result.saved_query_id.is_some());
     assert_eq!(500, apl_query_result.matches.len());
 }
