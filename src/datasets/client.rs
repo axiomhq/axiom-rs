@@ -114,12 +114,18 @@ impl Client {
 
     /// Update a dataset.
     #[instrument(skip(self))]
-    pub async fn update<N>(&self, dataset_name: N, req: DatasetUpdateRequest) -> Result<Dataset>
+    pub async fn update<N, D>(&self, dataset_name: N, new_description: D) -> Result<Dataset>
     where
         N: Into<String> + FmtDebug,
+        D: Into<String> + FmtDebug,
     {
         self.http_client
-            .put(format!("/v1/datasets/{}", dataset_name.into()), &req)
+            .put(
+                format!("/v1/datasets/{}", dataset_name.into()),
+                DatasetUpdateRequest {
+                    description: new_description.into(),
+                },
+            )
             .await?
             .json()
             .await

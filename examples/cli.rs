@@ -75,13 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Datasets::Get { name } => println!("{:?}", client.datasets.get(&name).await?),
             Datasets::Info { name } => println!("{:?}", client.datasets.info(&name).await?),
             Datasets::Update { name, description } => {
-                let dataset = client
-                    .datasets
-                    .update(
-                        &name,
-                        axiom_rs::datasets::DatasetUpdateRequest { description },
-                    )
-                    .await?;
+                let dataset = client.datasets.update(&name, description).await?;
                 println!("{:?}", dataset);
             }
             Datasets::Delete { name } => client.datasets.delete(&name).await?,

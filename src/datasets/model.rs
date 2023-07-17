@@ -296,7 +296,7 @@ pub struct IngestFailure {
 
 /// Used to create a dataset.
 #[derive(Serialize, Debug)]
-pub struct DatasetCreateRequest {
+pub(crate) struct DatasetCreateRequest {
     /// Restricted to 128 bytes of [a-zA-Z0-9] and special characters "-", "_"
     /// and ".". Special characters cannot be a prefix or suffix. The prefix
     /// cannot be "axiom-".
@@ -307,7 +307,7 @@ pub struct DatasetCreateRequest {
 
 /// Used to update a dataset.
 #[derive(Serialize, Deserialize, Debug)]
-pub struct DatasetUpdateRequest {
+pub(crate) struct DatasetUpdateRequest {
     /// Description of the dataset to update.
     pub description: String,
 }
