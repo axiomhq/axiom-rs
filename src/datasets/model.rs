@@ -1,6 +1,6 @@
+use bitflags::bitflags;
 use chrono::{DateTime, Duration, Utc};
 use http::header::HeaderValue;
-use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{
     de::{self, Error as SerdeError, Unexpected, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
@@ -296,7 +296,7 @@ pub struct IngestFailure {
 
 /// Used to create a dataset.
 #[derive(Serialize, Debug)]
-pub struct DatasetCreateRequest {
+pub(crate) struct DatasetCreateRequest {
     /// Restricted to 128 bytes of [a-zA-Z0-9] and special characters "-", "_"
     /// and ".". Special characters cannot be a prefix or suffix. The prefix
     /// cannot be "axiom-".
@@ -307,7 +307,7 @@ pub struct DatasetCreateRequest {
 
 /// Used to update a dataset.
 #[derive(Serialize, Deserialize, Debug)]
-pub struct DatasetUpdateRequest {
+pub(crate) struct DatasetUpdateRequest {
     /// Description of the dataset to update.
     pub description: String,
 }
@@ -878,14 +878,15 @@ pub struct QueryStatus {
     pub min_cursor: Option<String>,
 }
 
-/// The cache status of the query.
-#[derive(IntoPrimitive, TryFromPrimitive, Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-#[non_exhaustive]
-pub enum CacheStatus {
-    Miss = 1,
-    Materialized = 2, // Filtered rows
-    Results = 4,      // Aggregated and grouped records
+bitflags! {
+    /// The cache status of the query.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+    pub struct CacheStatus: u32 {
+        const Miss = 1;
+        const Materialized = 2; // Filtered rows
+        const Results = 4;      // Aggregated and grouped records
+        const WalCached = 8;    // WAL is cached
+    }
 }
 
 impl Serialize for CacheStatus {
@@ -893,7 +894,7 @@ impl Serialize for CacheStatus {
     where
         S: Serializer,
     {
-        serializer.serialize_u8((*self).into())
+        serializer.serialize_u32((*self).bits())
     }
 }
 
@@ -902,8 +903,8 @@ impl<'de> Deserialize<'de> for CacheStatus {
     where
         D: Deserializer<'de>,
     {
-        let value: u8 = Deserialize::deserialize(deserializer)?;
-        Self::try_from(value).map_err(serde::de::Error::custom)
+        let value: u32 = Deserialize::deserialize(deserializer)?;
+        Ok(Self::from_bits(value).unwrap_or_default())
     }
 }
 

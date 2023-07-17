@@ -57,9 +57,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
         .datasets
         .update(
             &ctx.dataset.name,
-            DatasetUpdateRequest {
-                description: "This is a soon to be filled test dataset".to_string(),
-            },
+            "This is a soon to be filled test dataset",
         )
         .await
         .unwrap();
