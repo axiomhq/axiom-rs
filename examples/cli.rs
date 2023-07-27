@@ -26,8 +26,6 @@ enum Datasets {
     List,
     /// Get a dataset
     Get { name: String },
-    /// Get information for a dataset
-    Info { name: String },
     /// Update the description of a dataset
     Update {
         name: String,
@@ -37,13 +35,6 @@ enum Datasets {
     },
     /// Delete a dataset
     Delete { name: String },
-    /// Trim a dataset
-    Trim {
-        name: String,
-
-        #[structopt(long)]
-        seconds: u64,
-    },
     /// Ingest into a dataset from stdin.
     Ingest {
         name: String,
@@ -73,19 +64,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("{:?}", dataset);
                 }),
             Datasets::Get { name } => println!("{:?}", client.datasets.get(&name).await?),
-            Datasets::Info { name } => println!("{:?}", client.datasets.info(&name).await?),
             Datasets::Update { name, description } => {
                 let dataset = client.datasets.update(&name, description).await?;
                 println!("{:?}", dataset);
             }
             Datasets::Delete { name } => client.datasets.delete(&name).await?,
-            Datasets::Trim { name, seconds } => println!(
-                "{:?}",
-                client
-                    .datasets
-                    .trim(&name, Duration::from_secs(seconds))
-                    .await?
-            ),
             Datasets::Ingest {
                 name,
                 content_type,
