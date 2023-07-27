@@ -22,7 +22,9 @@ use crate::{
     },
     error::{Error, Result},
     http::{self, HeaderMap},
-    is_personal_token, users,
+    is_personal_token,
+    query_builder::{QueryBuilder, StateInitial, StatefulQueryBuilder},
+    users,
 };
 
 /// API URL is the URL for the Axiom Cloud API.
@@ -80,6 +82,11 @@ impl Client {
     /// Get client version.
     pub async fn version(&self) -> String {
         env!("CARGO_PKG_VERSION").to_string()
+    }
+
+    /// Get an APL query builder for the given dataset.
+    pub fn apl_builder(dataset_name: impl Into<String>) -> StatefulQueryBuilder<StateInitial> {
+        QueryBuilder::new(dataset_name)
     }
 
     /// Executes the given query specified using the Axiom Processing Language (APL).

@@ -7,16 +7,19 @@
 //!    .extend("baz = 1")
 //!    .project(vec!["foo", "baz"])
 //!    .take(10)
-//!    .build();
+//!    .to_string();
 //! assert_eq!(query, r#"['my-dataset']
 //! | where foo == 'bar'
 //! | extend baz = 1
 //! | project foo, baz
 //! | take 10"#);
 //! ```
-use std::marker::PhantomData;
+use std::{fmt, marker::PhantomData};
 
-use crate::Error;
+use crate::{
+    datasets::{QueryOptions, QueryResult},
+    Client, Error,
+};
 
 #[derive(Debug)]
 enum Statement {
@@ -99,7 +102,7 @@ impl<State> StatefulQueryBuilder<State> {
     /// ```
     /// let query = QueryBuilder::new("my-dataset")
     ///     .r#where("foo == 'bar'")
-    ///     .build();
+    ///     .to_string();
     /// assert_eq!(query, r#"['my-dataset'] | where foo == 'bar'"#);
     /// ```
     pub fn r#where(mut self, expr: impl Into<String>) -> StatefulQueryBuilder<StateWhere> {
@@ -117,7 +120,7 @@ impl<State> StatefulQueryBuilder<State> {
     /// ```
     /// let query = QueryBuilder::new("my-dataset")
     ///     .extend("foo = 'bar'")
-    ///     .build();
+    ///     .to_string();
     /// assert_eq!(query, r#"['my-dataset'] | extend foo = 'bar'"#);
     /// ```
     pub fn extend(mut self, expr: impl StringOrVec) -> StatefulQueryBuilder<StateInitial> {
@@ -135,7 +138,7 @@ impl<State> StatefulQueryBuilder<State> {
     /// ```
     /// let query = QueryBuilder::new("my-dataset")
     ///     .project("foo = 'bar'")
-    ///     .build();
+    ///     .to_string();
     /// assert_eq!(query, r#"['my-dataset'] | project foo = 'bar'"#);
     /// ```
     pub fn project(mut self, expr: impl StringOrVec) -> StatefulQueryBuilder<StateInitial> {
@@ -151,7 +154,7 @@ impl<State> StatefulQueryBuilder<State> {
     ///
     /// # Examples
     /// ```
-    /// let query = QueryBuilder::new("my-dataset").take(10).build();
+    /// let query = QueryBuilder::new("my-dataset").take(10).to_string();
     /// assert_eq!(query, r#"['my-dataset'] | take 10"#);
     /// ```
     pub fn take(mut self, count: impl Into<i64>) -> StatefulQueryBuilder<StateInitial> {
@@ -171,7 +174,7 @@ impl<State> StatefulQueryBuilder<State> {
     /// ```
     /// let query = QueryBuilder::new("my-dataset")
     ///     .summarize("count()")
-    ///     .build();
+    ///     .to_string();
     /// assert_eq!(query, r#"['my-dataset'] | summarize count()"#);
     /// ```
     pub fn summarize(mut self, expr: impl Into<String>) -> StatefulQueryBuilder<StateSummarize> {
@@ -187,7 +190,7 @@ impl<State> StatefulQueryBuilder<State> {
     ///
     /// # Examples
     /// ```
-    /// let query = QueryBuilder::new("my-dataset").count().build();
+    /// let query = QueryBuilder::new("my-dataset").count().to_string();
     /// assert_eq!(query, r#"['my-dataset'] | count"#);
     /// ```
     pub fn count(mut self) -> StatefulQueryBuilder<StateInitial> {
@@ -199,13 +202,25 @@ impl<State> StatefulQueryBuilder<State> {
         }
     }
 
-    /// Build the query.
-    pub fn build(self) -> String {
-        format!(
+    /// Run the query using the given client.
+    pub async fn run(
+        self,
+        client: Client,
+        opts: impl Into<Option<QueryOptions>>,
+    ) -> Result<QueryResult, Error> {
+        let query = self.to_string();
+        client.query(&query, opts).await
+    }
+}
+
+impl<State> fmt::Display for StatefulQueryBuilder<State> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
             "['{}']{}",
             self.dataset_name,
             self.statements
-                .into_iter()
+                .iter()
                 .map(|stmt| stmt.to_string())
                 .collect::<Vec<_>>()
                 .join("")
@@ -235,7 +250,7 @@ where
     /// let query = QueryBuilder::new("my-dataset")
     ///     .r#where("foo == 'bar'")
     ///     .and("baz == 'qux'")
-    ///     .build();
+    ///     .to_string();
     /// assert_eq!(query, r#"['my-dataset'] | where foo == 'bar' and baz == 'qux'"#);
     /// ```
     pub fn and(mut self, expr: impl Into<String>) -> Self {
@@ -252,7 +267,7 @@ where
     /// let query = QueryBuilder::new("my-dataset")
     ///     .r#where("foo == 'bar'")
     ///     .or("baz == 'qux'")
-    ///     .build();
+    ///     .to_string();
     /// assert_eq!(query, r#"['my-dataset'] | where foo == 'bar' or baz == 'qux'"#);
     pub fn or(mut self, expr: impl Into<String>) -> Self {
         self.statements.push(Statement::WhereOr(expr.into()));
@@ -283,7 +298,7 @@ where
     /// let query = QueryBuilder::new("my-dataset")
     ///     .summarize("count()")
     ///     .by("foo")
-    ///     .build();
+    ///     .to_string();
     /// assert_eq!(query, r#"['my-dataset'] | summarize count() by foo"#);
     /// ```
     pub fn by(mut self, fields: impl StringOrVec) -> StatefulQueryBuilder<StateInitial> {
@@ -342,7 +357,7 @@ mod tests {
             .summarize("avg(price)")
             .by(vec!["bin_auto(_time)", "customer_name"])
             .count()
-            .build();
+            .to_string();
 
         assert_eq!(
             query,
