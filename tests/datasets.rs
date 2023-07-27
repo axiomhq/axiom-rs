@@ -168,12 +168,6 @@ async fn test_datasets_impl(ctx: &mut Context) {
     // Give the db some time to write the data.
     tokio::time::sleep(StdDuration::from_secs(15)).await;
 
-    // Get the dataset info and make sure four events have been ingested.
-    let info = ctx.client.datasets.info(&ctx.dataset.name).await.unwrap();
-    assert_eq!(ctx.dataset.name, info.stat.name);
-    assert_eq!(4327, info.stat.num_events);
-    assert!(info.fields.len() > 0);
-
     // Run a query and make sure we see some results.
     #[allow(deprecated)]
     let simple_query_result = ctx
@@ -279,11 +273,4 @@ async fn test_datasets_impl(ctx: &mut Context) {
         .unwrap();
     assert_eq!("event_count", agg.alias);
     assert_eq!(2164, agg.value);
-
-    // Trim the dataset down to a minimum.
-    ctx.client
-        .datasets
-        .trim(&ctx.dataset.name, Duration::seconds(1))
-        .await
-        .unwrap();
 }

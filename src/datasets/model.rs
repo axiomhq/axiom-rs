@@ -1,5 +1,5 @@
 use bitflags::bitflags;
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use http::header::HeaderValue;
 use serde::{
     de::{self, Error as SerdeError, Unexpected, Visitor},
@@ -133,113 +133,6 @@ pub struct Dataset {
     // ignored: integrationConfigs, integrationFilters, quickQueries
 }
 
-/// A field of an Axiom dataset.
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
-pub struct Field {
-    /// Name is the unique name of the field.
-    pub name: String,
-    /// Description is the description of the field.
-    pub description: String,
-    /// Type is the datatype of the field.
-    #[serde(rename = "type")]
-    pub typ: String,
-    /// Unit is the unit of the field.
-    pub unit: String,
-    /// Hidden describes if the field is hidden or not.
-    pub hidden: bool,
-}
-
-/// Details of the information stored in a dataset.
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct Stat {
-    /// The unique name of the dataset.
-    pub name: String,
-    /// The number of blocks of the dataset.
-    #[deprecated(
-        since = "0.8.0",
-        note = "This field will be removed in a future version."
-    )]
-    pub num_blocks: u64,
-    /// The number of events of the dataset.
-    pub num_events: u64,
-    /// The number of fields of the dataset.
-    pub num_fields: u32,
-    /// The amount of data stored in the dataset.
-    pub input_bytes: u64,
-    /// The amount of data stored in the dataset formatted in a human
-    /// readable format.
-    #[deprecated(
-        since = "0.8.0",
-        note = "This field will be removed in a future version."
-    )]
-    pub input_bytes_human: String,
-    /// The amount of compressed data stored in the dataset.
-    pub compressed_bytes: u64,
-    /// The amount of compressed data stored in the
-    /// dataset formatted in a human readable format.
-    #[deprecated(
-        since = "0.8.0",
-        note = "This field will be removed in a future version."
-    )]
-    pub compressed_bytes_human: String,
-    /// The time of the oldest event stored in the dataset.
-    pub min_time: Option<DateTime<Utc>>,
-    /// The time of the newest event stored in the dataset.
-    pub max_time: Option<DateTime<Utc>>,
-    /// The ID of the user who created the dataset.
-    #[serde(rename = "who")]
-    #[deprecated(
-        since = "0.8.0",
-        note = "This field will be removed in a future version."
-    )]
-    pub created_by: Option<String>,
-    /// The time the dataset was created at.
-    #[serde(rename = "created")]
-    pub created_at: DateTime<Utc>,
-}
-
-/// Details of the information stored inside a dataset including the fields.
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct Info {
-    /// The stats of the dataset.
-    #[serde(flatten)]
-    pub stat: Stat,
-    /// The fields of the dataset.
-    pub fields: Vec<Field>,
-}
-
-#[derive(Serialize, Debug)]
-pub(crate) struct TrimRequest {
-    #[serde(rename = "maxDuration")]
-    max_duration: String,
-}
-
-impl TrimRequest {
-    pub(crate) fn new(duration: Duration) -> Self {
-        TrimRequest {
-            max_duration: format!("{}s", duration.num_seconds()),
-        }
-    }
-}
-
-/// The result of a trim operation.
-#[deprecated(
-    since = "0.8.0",
-    note = "The trim response will be removed in a future version."
-)]
-#[derive(Deserialize, Debug)]
-pub struct TrimResult {
-    /// The amount of blocks deleted by the trim operation.
-    #[deprecated(
-        since = "0.4.0",
-        note = "This field is deprecated and will be removed in a future version."
-    )]
-    #[serde(rename = "numDeleted")]
-    pub blocks_deleted: u64,
-}
-
 /// Returned on event ingestion operation.
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
@@ -252,18 +145,6 @@ pub struct IngestStatus {
     pub failures: Vec<IngestFailure>,
     /// Number of bytes processed.
     pub processed_bytes: u64,
-    /// Amount of blocks created.
-    #[deprecated(
-        since = "0.8.0",
-        note = "This field will be removed in a future version."
-    )]
-    pub blocks_created: u32,
-    /// The length of the Write-Ahead Log.
-    #[deprecated(
-        since = "0.8.0",
-        note = "This field will be removed in a future version."
-    )]
-    pub wal_length: u32,
 }
 
 impl Add for IngestStatus {
@@ -273,14 +154,11 @@ impl Add for IngestStatus {
         let mut failures = self.failures;
         failures.extend(other.failures);
 
-        #[allow(deprecated)]
         Self {
             ingested: self.ingested + other.ingested,
             failed: self.failed + other.failed,
             failures,
             processed_bytes: self.processed_bytes + other.processed_bytes,
-            blocks_created: self.blocks_created + other.blocks_created,
-            wal_length: other.wal_length,
         }
     }
 }
