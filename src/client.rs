@@ -83,7 +83,7 @@ impl Client {
     }
 
     /// Executes the given query specified using the Axiom Processing Language (APL).
-    /// To learn more about APL, see the APL documentation at https://www.axiom.co/docs/apl/introduction.
+    /// To learn more about APL, see the APL documentation at <https://www.axiom.co/docs/apl/introduction>.
     #[instrument(skip(self, opts))]
     pub async fn query<S, O>(&self, apl: S, opts: O) -> Result<QueryResult>
     where
