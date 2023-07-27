@@ -2,6 +2,7 @@
 //!
 //! # Examples
 //! ```
+//! use axiom_rs::query_builder::QueryBuilder;
 //! let query = QueryBuilder::new("my-dataset")
 //!    .r#where("foo == 'bar'")
 //!    .extend("baz = 1")
@@ -101,10 +102,13 @@ impl<State> StatefulQueryBuilder<State> {
     ///
     /// # Examples
     /// ```
+    /// use axiom_rs::query_builder::QueryBuilder;
+    ///
     /// let query = QueryBuilder::new("my-dataset")
     ///     .r#where("foo == 'bar'")
     ///     .to_string();
-    /// assert_eq!(query, r#"['my-dataset'] | where foo == 'bar'"#);
+    /// assert_eq!(query, r#"['my-dataset']
+    /// | where foo == 'bar'"#);
     /// ```
     pub fn r#where(mut self, expr: impl Into<String>) -> StatefulQueryBuilder<StateWhere> {
         self.statements.push(Statement::Where(expr.into()));
@@ -119,10 +123,13 @@ impl<State> StatefulQueryBuilder<State> {
     ///
     /// # Examples
     /// ```
+    /// use axiom_rs::query_builder::QueryBuilder;
+    ///
     /// let query = QueryBuilder::new("my-dataset")
     ///     .extend("foo = 'bar'")
     ///     .to_string();
-    /// assert_eq!(query, r#"['my-dataset'] | extend foo = 'bar'"#);
+    /// assert_eq!(query, r#"['my-dataset']
+    /// | extend foo = 'bar'"#);
     /// ```
     pub fn extend(mut self, expr: impl StringOrVec) -> StatefulQueryBuilder<StateInitial> {
         self.statements.push(Statement::Extend(expr.into_vec()));
@@ -137,10 +144,13 @@ impl<State> StatefulQueryBuilder<State> {
     ///
     /// # Examples
     /// ```
+    /// use axiom_rs::query_builder::QueryBuilder;
+    ///
     /// let query = QueryBuilder::new("my-dataset")
     ///     .project("foo = 'bar'")
     ///     .to_string();
-    /// assert_eq!(query, r#"['my-dataset'] | project foo = 'bar'"#);
+    /// assert_eq!(query, r#"['my-dataset']
+    /// | project foo = 'bar'"#);
     /// ```
     pub fn project(mut self, expr: impl StringOrVec) -> StatefulQueryBuilder<StateInitial> {
         self.statements.push(Statement::Project(expr.into_vec()));
@@ -155,8 +165,11 @@ impl<State> StatefulQueryBuilder<State> {
     ///
     /// # Examples
     /// ```
+    /// use axiom_rs::query_builder::QueryBuilder;
+    ///
     /// let query = QueryBuilder::new("my-dataset").take(10).to_string();
-    /// assert_eq!(query, r#"['my-dataset'] | take 10"#);
+    /// assert_eq!(query, r#"['my-dataset']
+    /// | take 10"#);
     /// ```
     pub fn take(mut self, count: impl Into<i64>) -> StatefulQueryBuilder<StateInitial> {
         self.statements.push(Statement::Take(count.into()));
@@ -173,10 +186,13 @@ impl<State> StatefulQueryBuilder<State> {
     ///
     /// # Examples
     /// ```
+    /// use axiom_rs::query_builder::QueryBuilder;
+    ///
     /// let query = QueryBuilder::new("my-dataset")
     ///     .summarize("count()")
     ///     .to_string();
-    /// assert_eq!(query, r#"['my-dataset'] | summarize count()"#);
+    /// assert_eq!(query, r#"['my-dataset']
+    /// | summarize count()"#);
     /// ```
     pub fn summarize(mut self, expr: impl Into<String>) -> StatefulQueryBuilder<StateSummarize> {
         self.statements.push(Statement::Summarize(expr.into()));
@@ -191,8 +207,11 @@ impl<State> StatefulQueryBuilder<State> {
     ///
     /// # Examples
     /// ```
+    /// use axiom_rs::query_builder::QueryBuilder;
+    ///
     /// let query = QueryBuilder::new("my-dataset").count().to_string();
-    /// assert_eq!(query, r#"['my-dataset'] | count"#);
+    /// assert_eq!(query, r#"['my-dataset']
+    /// | count"#);
     /// ```
     pub fn count(mut self) -> StatefulQueryBuilder<StateInitial> {
         self.statements.push(Statement::Count);
@@ -248,11 +267,24 @@ where
     ///
     /// # Examples
     /// ```
+    /// use axiom_rs::query_builder::QueryBuilder;
+    ///
     /// let query = QueryBuilder::new("my-dataset")
     ///     .r#where("foo == 'bar'")
     ///     .and("baz == 'qux'")
     ///     .to_string();
-    /// assert_eq!(query, r#"['my-dataset'] | where foo == 'bar' and baz == 'qux'"#);
+    /// assert_eq!(query, r#"['my-dataset']
+    /// | where foo == 'bar' and baz == 'qux'"#);
+    /// ```
+    ///
+    /// Note that you can only run this after a [`StatefulQueryBuilder::where`]
+    /// call, this doesn't work:
+    ///
+    /// ```compile_fail
+    /// use axiom_rs::query_builder::QueryBuilder;
+    ///
+    /// let query = QueryBuilder::new("my-dataset")
+    ///     .and("foo == 'bar'");
     /// ```
     pub fn and(mut self, expr: impl Into<String>) -> Self {
         self.statements.push(Statement::WhereAnd(expr.into()));
@@ -265,11 +297,25 @@ where
     ///
     /// # Examples
     /// ```
+    /// use axiom_rs::query_builder::QueryBuilder;
+    ///
     /// let query = QueryBuilder::new("my-dataset")
     ///     .r#where("foo == 'bar'")
     ///     .or("baz == 'qux'")
     ///     .to_string();
-    /// assert_eq!(query, r#"['my-dataset'] | where foo == 'bar' or baz == 'qux'"#);
+    /// assert_eq!(query, r#"['my-dataset']
+    /// | where foo == 'bar' or baz == 'qux'"#);
+    /// ```
+    ///
+    /// Note that you can only run this after a [`StatefulQueryBuilder::where`]
+    /// call, this doesn't work:
+    ///
+    /// ```compile_fail
+    /// use axiom_rs::query_builder::QueryBuilder;
+    ///
+    /// let query = QueryBuilder::new("my-dataset")
+    ///     .or("foo == 'bar'");
+    /// ```
     pub fn or(mut self, expr: impl Into<String>) -> Self {
         self.statements.push(Statement::WhereOr(expr.into()));
         self
@@ -296,11 +342,24 @@ where
     ///
     /// # Examples
     /// ```
+    /// use axiom_rs::query_builder::QueryBuilder;
+    ///
     /// let query = QueryBuilder::new("my-dataset")
     ///     .summarize("count()")
     ///     .by("foo")
     ///     .to_string();
-    /// assert_eq!(query, r#"['my-dataset'] | summarize count() by foo"#);
+    /// assert_eq!(query, r#"['my-dataset']
+    /// | summarize count() by foo"#);
+    /// ```
+    ///
+    /// Note that you can only run this after a
+    /// [`StatefulQueryBuilder::summarize`] call, this doesn't work:
+    ///
+    /// ```compile_fail
+    /// use axiom_rs::query_builder::QueryBuilder;
+    ///
+    /// let query = QueryBuilder::new("my-dataset")
+    ///     .by("bin_auto(_time)");
     /// ```
     pub fn by(mut self, fields: impl StringOrVec) -> StatefulQueryBuilder<StateInitial> {
         self.statements.push(Statement::By(fields.into_vec()));
