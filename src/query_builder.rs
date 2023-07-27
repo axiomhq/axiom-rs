@@ -352,8 +352,8 @@ mod tests {
             .r#where("name == 'John'")
             .and("age == 30")
             .or("age == 40")
-            .extend("height = 84")
-            .project(vec!["weight = 78", "foo = 'bar'"])
+            .extend(vec!["height = 84", "isYoung = age < 30"])
+            .project("weight = 78")
             .take(10)
             .summarize("avg(price)")
             .by(vec!["bin_auto(_time)", "customer_name"])
@@ -363,9 +363,9 @@ mod tests {
         assert_eq!(
             query,
             r#"['users']
-| where ['name'] == 'John' and ['age'] == 30 or ['age'] == 40
-| extend ['height'] = 84, ['isOld'] = age > 30
-| project ['weight'] = 78
+| where name == 'John' and age == 30 or age == 40
+| extend height = 84, isYoung = age < 30
+| project weight = 78
 | take 10
 | summarize avg(price) by bin_auto(_time), customer_name
 | count"#
