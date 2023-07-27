@@ -70,6 +70,7 @@ pub struct QueryBuilder {}
 
 impl QueryBuilder {
     /// Create a new query builder for the given dataset.
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(dataset_name: impl Into<String>) -> StatefulQueryBuilder<StateInitial> {
         StatefulQueryBuilder {
             dataset_name: dataset_name.into(),
