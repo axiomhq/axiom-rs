@@ -254,6 +254,7 @@ impl Client {
     /// Restrictions for field names (JSON object keys) can be reviewed here:
     /// <https://www.axiom.co/docs/usage/field-restrictions>.
     #[async_impl]
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-std"))))]
     #[instrument(skip(self, stream))]
     pub async fn ingest_stream<N, S, E>(&self, dataset_name: N, stream: S) -> Result<IngestStatus>
     where
@@ -273,6 +274,7 @@ impl Client {
 
     /// Like [`Client::ingest_stream`], but takes a stream that contains results.
     #[async_impl]
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-std"))))]
     #[instrument(skip(self, stream))]
     pub async fn try_ingest_stream<N, S, I, E>(
         &self,

@@ -59,3 +59,7 @@ default-tls = ["reqwest/default-tls"]
 native-tls = ["reqwest/native-tls"]
 rustls-tls = ["reqwest/rustls-tls"]
 blocking = ["ureq", "maybe-async/is_sync"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
