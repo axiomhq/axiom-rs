@@ -30,9 +30,14 @@
 //!     Ok(())
 //! }
 //! ```
+#![cfg_attr(docsrs, feature(doc_cfg))]
 pub mod client;
 pub mod error;
 mod http;
+#[cfg(not(feature = "blocking"))]
+mod http_async;
+#[cfg(feature = "blocking")]
+mod http_blocking;
 pub mod limits;
 mod serde;
 
@@ -48,6 +53,14 @@ pub struct ReadmeDoctests;
 
 #[cfg(all(feature = "tokio", feature = "async-std"))]
 compile_error!("Feature \"tokio\" and \"async-std\" cannot be enabled at the same time");
+
+#[cfg(all(feature = "blocking", any(feature = "tokio", feature = "async-std")))]
+compile_error!(
+    "Feature \"blocking\" cannot be enabled at the same time as \"tokio\" or \"async-std\""
+);
+
+#[cfg(not(any(feature = "blocking", feature = "tokio", feature = "async-std")))]
+compile_error!("Needs at least one of \"blocking\", \"tokio\" or \"async-std\" features");
 
 #[cfg(all(feature = "default-tls", feature = "native-tls"))]
 compile_error!("Feature \"default-tls\" and \"native-tls\" cannot be enabled at the same time");

@@ -3,15 +3,17 @@
 use async_std::task::spawn_blocking;
 use bytes::Bytes;
 use flate2::{write::GzEncoder, Compression};
+#[cfg(not(feature = "blocking"))]
 use futures::Stream;
-use reqwest::header;
+use http::header;
+use maybe_async::{async_impl, maybe_async};
 use serde::Serialize;
-use std::{
-    env, fmt::Debug as FmtDebug, io::Write, result::Result as StdResult,
-    time::Duration as StdDuration,
-};
+#[cfg(not(feature = "blocking"))]
+use std::time::Duration as StdDuration;
+use std::{env, fmt::Debug as FmtDebug, io::Write};
 #[cfg(feature = "tokio")]
 use tokio::task::spawn_blocking;
+#[cfg(not(feature = "blocking"))]
 use tokio_stream::StreamExt;
 use tracing::instrument;
 
@@ -21,7 +23,7 @@ use crate::{
         LegacyQueryResult, Query, QueryOptions, QueryParams, QueryResult,
     },
     error::{Error, Result},
-    http::{self, HeaderMap},
+    http::{Client as HttpClient, HeaderMap},
     is_personal_token, users,
 };
 
@@ -53,7 +55,7 @@ static API_URL: &str = "https://api.axiom.co";
 /// ```
 #[derive(Debug, Clone)]
 pub struct Client {
-    http_client: http::Client,
+    http_client: HttpClient,
 
     url: String,
     pub datasets: datasets::Client,
@@ -78,12 +80,13 @@ impl Client {
     }
 
     /// Get client version.
-    pub async fn version(&self) -> String {
+    pub fn version(&self) -> String {
         env!("CARGO_PKG_VERSION").to_string()
     }
 
     /// Executes the given query specified using the Axiom Processing Language (APL).
     /// To learn more about APL, see the APL documentation at https://www.axiom.co/docs/apl/introduction.
+    #[maybe_async]
     #[instrument(skip(self, opts))]
     pub async fn query<S, O>(&self, apl: S, opts: O) -> Result<QueryResult>
     where
@@ -122,20 +125,17 @@ impl Client {
         let res = self.http_client.post(path, &req).await?;
 
         let saved_query_id = res
-            .headers()
-            .get("X-Axiom-History-Query-Id")
-            .map(|s| s.to_str())
-            .transpose()
-            .map_err(|_e| Error::InvalidQueryId)?
+            .get_header("X-Axiom-History-Query-Id")
             .map(|s| s.to_string());
 
-        let mut result = res.json::<QueryResult>().await?;
+        let mut result: QueryResult = res.json::<QueryResult>().await?;
         result.saved_query_id = saved_query_id;
 
         Ok(result)
     }
 
     /// Execute the given query on the dataset identified by its id.
+    #[maybe_async]
     #[instrument(skip(self, opts))]
     #[deprecated(
         since = "0.6.0",
@@ -162,13 +162,9 @@ impl Client {
         let res = self.http_client.post(path, &query).await?;
 
         let saved_query_id = res
-            .headers()
-            .get("X-Axiom-History-Query-Id")
-            .map(|s| s.to_str())
-            .transpose()
-            .map_err(|_e| Error::InvalidQueryId)?
+            .get_header("X-Axiom-History-Query-Id")
             .map(|s| s.to_string());
-        let mut result = res.json::<LegacyQueryResult>().await?;
+        let mut result: LegacyQueryResult = res.json::<LegacyQueryResult>().await?;
         result.saved_query_id = saved_query_id;
 
         Ok(result)
@@ -177,6 +173,7 @@ impl Client {
     /// Ingest events into the dataset identified by its id.
     /// Restrictions for field names (JSON object keys) can be reviewed here:
     /// <https://www.axiom.co/docs/usage/field-restrictions>.
+    #[maybe_async]
     #[instrument(skip(self, events))]
     pub async fn ingest<N, I, E>(&self, dataset_name: N, events: I) -> Result<IngestStatus>
     where
@@ -189,13 +186,24 @@ impl Client {
             .map(|event| serde_json::to_vec(&event).map_err(Error::Serialize))
             .collect();
         let json_payload = json_lines?.join(&b"\n"[..]);
+
+        #[cfg(not(feature = "blocking"))]
         let payload = spawn_blocking(move || {
             let mut gzip_payload = GzEncoder::new(Vec::new(), Compression::default());
             gzip_payload.write_all(&json_payload)?;
             gzip_payload.finish()
         })
         .await;
-        #[cfg(feature = "tokio")]
+        #[cfg(feature = "blocking")]
+        let payload = {
+            let mut gzip_payload = GzEncoder::new(Vec::new(), Compression::default());
+            gzip_payload
+                .write_all(&json_payload)
+                .map_err(Error::Encoding)?;
+            gzip_payload.finish()
+        };
+
+        #[cfg(all(feature = "tokio", not(feature = "blocking")))]
         let payload = payload.map_err(Error::JoinError)?;
         let payload = payload.map_err(Error::Encoding)?;
 
@@ -211,6 +219,7 @@ impl Client {
     /// Ingest data into the dataset identified by its id.
     /// Restrictions for field names (JSON object keys) can be reviewed here:
     /// <https://www.axiom.co/docs/usage/field-restrictions>.
+    #[maybe_async]
     #[instrument(skip(self, payload))]
     pub async fn ingest_bytes<N, P>(
         &self,
@@ -243,6 +252,8 @@ impl Client {
     /// with a backoff.
     /// Restrictions for field names (JSON object keys) can be reviewed here:
     /// <https://www.axiom.co/docs/usage/field-restrictions>.
+    #[async_impl]
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-std"))))]
     #[instrument(skip(self, stream))]
     pub async fn ingest_stream<N, S, E>(&self, dataset_name: N, stream: S) -> Result<IngestStatus>
     where
@@ -261,6 +272,8 @@ impl Client {
     }
 
     /// Like [`Client::ingest_stream`], but takes a stream that contains results.
+    #[async_impl]
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-std"))))]
     #[instrument(skip(self, stream))]
     pub async fn try_ingest_stream<N, S, I, E>(
         &self,
@@ -269,7 +282,7 @@ impl Client {
     ) -> Result<IngestStatus>
     where
         N: Into<String> + FmtDebug,
-        S: Stream<Item = StdResult<I, E>> + Send + Sync + 'static,
+        S: Stream<Item = std::result::Result<I, E>> + Send + Sync + 'static,
         I: Serialize,
         E: std::error::Error + Send + Sync + 'static,
     {
@@ -277,7 +290,7 @@ impl Client {
         let mut chunks = Box::pin(stream.chunks_timeout(1000, StdDuration::from_secs(1)));
         let mut ingest_status = IngestStatus::default();
         while let Some(events) = chunks.next().await {
-            let events: StdResult<Vec<I>, E> = events.into_iter().collect();
+            let events: std::result::Result<Vec<I>, E> = events.into_iter().collect();
             match events {
                 Ok(events) => {
                     let new_ingest_status = self.ingest(dataset_name.clone(), events).await?;
@@ -367,7 +380,7 @@ impl Builder {
             return Err(Error::MissingOrgId);
         }
 
-        let http_client = http::Client::new(url.clone(), token, org_id)?;
+        let http_client = HttpClient::new(url.clone(), token, org_id)?;
 
         Ok(Client {
             http_client: http_client.clone(),

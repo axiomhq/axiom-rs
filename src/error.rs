@@ -1,7 +1,7 @@
 //! Error type definitions.
 
 use serde::Deserialize;
-use std::fmt;
+use std::{fmt, io};
 use thiserror::Error;
 
 use crate::limits::Limits;
@@ -21,12 +21,21 @@ pub enum Error {
     InvalidToken,
     #[error("Invalid Org ID (make sure there are no invalid characters)")]
     InvalidOrgId,
+    #[cfg(not(feature = "blocking"))]
     #[error("Failed to setup HTTP client: {0}")]
     HttpClientSetup(reqwest::Error),
+    #[cfg(not(feature = "blocking"))]
     #[error("Failed to deserialize response: {0}")]
     Deserialize(reqwest::Error),
+    #[cfg(feature = "blocking")]
+    #[error("Failed to deserialize response: {0}")]
+    Deserialize(io::Error),
+    #[cfg(not(feature = "blocking"))]
     #[error("Http error: {0}")]
     Http(reqwest::Error),
+    #[cfg(feature = "blocking")]
+    #[error("Http error: {0}")]
+    Http(ureq::Error),
     #[error(transparent)]
     Axiom(AxiomError),
     #[error("Query ID contains invisible characters (this is a server error)")]
@@ -36,10 +45,10 @@ pub enum Error {
     #[error(transparent)]
     Serialize(#[from] serde_json::Error),
     #[error("Failed to encode payload: {0}")]
-    Encoding(std::io::Error),
+    Encoding(io::Error),
     #[error("Duration is out of range (can't be larger than i64::MAX milliseconds)")]
     DurationOutOfRange,
-    #[cfg(feature = "tokio")]
+    #[cfg(all(feature = "tokio", not(feature = "blocking")))]
     #[error("Failed to join thread: {0}")]
     JoinError(tokio::task::JoinError),
     #[error("Rate limit exceeded for the {scope} scope: {limits}")]
@@ -60,8 +69,22 @@ pub enum Error {
 
 /// This is the manual implementation. We don't really care if the error is
 /// permanent or transient at this stage so we just return Error::Http.
+#[cfg(not(feature = "blocking"))]
 impl From<backoff::Error<reqwest::Error>> for Error {
     fn from(err: backoff::Error<reqwest::Error>) -> Self {
+        match err {
+            backoff::Error::Permanent(err) => Error::Http(err),
+            backoff::Error::Transient {
+                err,
+                retry_after: _,
+            } => Error::Http(err),
+        }
+    }
+}
+
+#[cfg(feature = "blocking")]
+impl From<backoff::Error<ureq::Error>> for Error {
+    fn from(err: backoff::Error<ureq::Error>) -> Self {
         match err {
             backoff::Error::Permanent(err) => Error::Http(err),
             backoff::Error::Transient {

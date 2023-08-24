@@ -1,3 +1,4 @@
+use maybe_async::maybe_async;
 use std::{
     convert::{TryFrom, TryInto},
     fmt::Debug as FmtDebug,
@@ -27,6 +28,7 @@ impl Client {
     }
 
     /// Create a dataset with the given name and description.
+    #[maybe_async]
     #[instrument(skip(self))]
     pub async fn create<N, D>(&self, dataset_name: N, description: D) -> Result<Dataset>
     where
@@ -45,6 +47,7 @@ impl Client {
     }
 
     /// Delete the dataset with the given ID.
+    #[maybe_async]
     #[instrument(skip(self))]
     pub async fn delete<N>(&self, dataset_name: N) -> Result<()>
     where
@@ -56,6 +59,7 @@ impl Client {
     }
 
     /// Get a dataset by its id.
+    #[maybe_async]
     #[instrument(skip(self))]
     pub async fn get<N>(&self, dataset_name: N) -> Result<Dataset>
     where
@@ -69,6 +73,7 @@ impl Client {
     }
 
     /// Retrieve the information of the dataset identified by its id.
+    #[maybe_async]
     #[instrument(skip(self))]
     #[deprecated(
         since = "0.8.0",
@@ -86,6 +91,7 @@ impl Client {
     }
 
     /// List all available datasets.
+    #[maybe_async]
     #[instrument(skip(self))]
     pub async fn list(&self) -> Result<Vec<Dataset>> {
         self.http_client.get("/v1/datasets").await?.json().await
@@ -96,6 +102,7 @@ impl Client {
     /// Older ones will be deleted from the dataset.
     /// The duration can either be a [`std::time::Duration`] or a
     /// [`chrono::Duration`].
+    #[maybe_async]
     #[instrument(skip(self))]
     #[allow(deprecated)]
     pub async fn trim<N, D>(&self, dataset_name: N, duration: D) -> Result<TrimResult>
@@ -113,6 +120,7 @@ impl Client {
     }
 
     /// Update a dataset.
+    #[maybe_async]
     #[instrument(skip(self))]
     pub async fn update<N, D>(&self, dataset_name: N, new_description: D) -> Result<Dataset>
     where
