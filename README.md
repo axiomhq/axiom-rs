@@ -87,7 +87,8 @@ that can be enabled or disabled:
 - **native-tls**: Enables TLS functionality provided by `native-tls`.
 - **rustls-tls**: Enables TLS functionality provided by `rustls`.
 - **tokio** _(enabled by default)_: Enables the usage with the `tokio` runtime.
-- **async-std** : Enables the usage with the `async-std` runtime.
+- **async-std**: Enables the usage with the `async-std` runtime.
+- **blocking**: Provides a sync client.
 
 ## License
 
