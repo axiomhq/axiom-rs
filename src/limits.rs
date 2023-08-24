@@ -1,6 +1,7 @@
 //! Rate-limit type definitions.
 
 use chrono::{DateTime, TimeZone, Utc};
+#[cfg(not(feature = "blocking"))]
 use http::header;
 use std::fmt::Display;
 use thiserror::Error;

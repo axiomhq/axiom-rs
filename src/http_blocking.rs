@@ -50,7 +50,7 @@ impl Client {
             .join(path.as_ref())
             .map_err(Error::InvalidUrl)?;
 
-        let mut req = ureq::request_url(method.as_str(), &url);
+        let mut req = self.agent.request_url(method.as_str(), &url);
         if let Some(headers) = headers.into() {
             for (key, value) in headers {
                 if let Some(name) = key {

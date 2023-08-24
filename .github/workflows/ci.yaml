@@ -61,11 +61,13 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        runtime: [Tokio, async-std]
+        runtime: [Tokio, async-std, blocking]
         environment: [development, staging]
         include:
           - runtime: async-std
             flags: --no-default-features --features async-std,default-tls
+          - runtime: blocking
+            flags: --no-default-features --features blocking,default-tls --tests
           - environment: development
             url: TESTING_DEV_API_URL
             token: TESTING_DEV_TOKEN

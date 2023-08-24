@@ -5,13 +5,12 @@ use bytes::Bytes;
 use flate2::{write::GzEncoder, Compression};
 #[cfg(not(feature = "blocking"))]
 use futures::Stream;
+use http::header;
 use maybe_async::{async_impl, maybe_async};
-use reqwest::header;
 use serde::Serialize;
-use std::{
-    env, fmt::Debug as FmtDebug, io::Write, result::Result as StdResult,
-    time::Duration as StdDuration,
-};
+#[cfg(not(feature = "blocking"))]
+use std::time::Duration as StdDuration;
+use std::{env, fmt::Debug as FmtDebug, io::Write};
 #[cfg(feature = "tokio")]
 use tokio::task::spawn_blocking;
 #[cfg(not(feature = "blocking"))]
@@ -24,7 +23,7 @@ use crate::{
         LegacyQueryResult, Query, QueryOptions, QueryParams, QueryResult,
     },
     error::{Error, Result},
-    http::{self, HeaderMap},
+    http::{Client as HttpClient, HeaderMap},
     is_personal_token, users,
 };
 
@@ -56,7 +55,7 @@ static API_URL: &str = "https://api.axiom.co";
 /// ```
 #[derive(Debug, Clone)]
 pub struct Client {
-    http_client: http::Client,
+    http_client: HttpClient,
 
     url: String,
     pub datasets: datasets::Client,
@@ -283,7 +282,7 @@ impl Client {
     ) -> Result<IngestStatus>
     where
         N: Into<String> + FmtDebug,
-        S: Stream<Item = StdResult<I, E>> + Send + Sync + 'static,
+        S: Stream<Item = std::result::Result<I, E>> + Send + Sync + 'static,
         I: Serialize,
         E: std::error::Error + Send + Sync + 'static,
     {
@@ -291,7 +290,7 @@ impl Client {
         let mut chunks = Box::pin(stream.chunks_timeout(1000, StdDuration::from_secs(1)));
         let mut ingest_status = IngestStatus::default();
         while let Some(events) = chunks.next().await {
-            let events: StdResult<Vec<I>, E> = events.into_iter().collect();
+            let events: std::result::Result<Vec<I>, E> = events.into_iter().collect();
             match events {
                 Ok(events) => {
                     let new_ingest_status = self.ingest(dataset_name.clone(), events).await?;
@@ -381,7 +380,7 @@ impl Builder {
             return Err(Error::MissingOrgId);
         }
 
-        let http_client = http::Client::new(url.clone(), token, org_id)?;
+        let http_client = HttpClient::new(url.clone(), token, org_id)?;
 
         Ok(Client {
             http_client: http_client.clone(),

@@ -44,7 +44,6 @@ reqwest = { version = "0.11", optional = true, default-features = false, feature
 tokio = { version = "1", features = ["full"] }
 async-std = { version = "1", features = ["attributes"] }
 serde_test = "1"
-test-context = "0.1"
 async-trait = "0.1"
 futures-util = "0.3"
 httpmock = "0.6"
@@ -55,9 +54,9 @@ tracing-subscriber = { version = "0.3", features = ["ansi", "env-filter"] }
 default = ["tokio", "default-tls"]
 tokio = ["backoff/tokio", "dep:tokio", "futures", "async-trait", "tokio-stream", "reqwest"]
 async-std = ["backoff/async-std", "dep:async-std", "futures", "async-trait", "tokio-stream", "reqwest"]
-default-tls = ["reqwest/default-tls"]
-native-tls = ["reqwest/native-tls"]
-rustls-tls = ["reqwest/rustls-tls"]
+default-tls = ["reqwest/default-tls", "ureq/tls"]
+native-tls = ["reqwest/native-tls", "ureq/native-tls"]
+rustls-tls = ["reqwest/rustls-tls", "ureq/rustls"]
 blocking = ["ureq", "maybe-async/is_sync"]
 
 [package.metadata.docs.rs]

@@ -54,6 +54,14 @@ pub struct ReadmeDoctests;
 #[cfg(all(feature = "tokio", feature = "async-std"))]
 compile_error!("Feature \"tokio\" and \"async-std\" cannot be enabled at the same time");
 
+#[cfg(all(feature = "blocking", any(feature = "tokio", feature = "async-std")))]
+compile_error!(
+    "Feature \"blocking\" cannot be enabled at the same time as \"tokio\" or \"async-std\""
+);
+
+#[cfg(not(any(feature = "blocking", feature = "tokio", feature = "async-std")))]
+compile_error!("Needs at least one of \"blocking\", \"tokio\" or \"async-std\" features");
+
 #[cfg(all(feature = "default-tls", feature = "native-tls"))]
 compile_error!("Feature \"default-tls\" and \"native-tls\" cannot be enabled at the same time");
 
@@ -62,11 +70,6 @@ compile_error!("Feature \"native-tls\" and \"rustls-tls\" cannot be enabled at t
 
 #[cfg(all(feature = "rustls-tls", feature = "default-tls"))]
 compile_error!("Feature \"rustls-tls\" and \"default-tls\" cannot be enabled at the same time");
-
-#[cfg(all(feature = "blocking", any(feature = "tokio", feature = "async-std")))]
-compile_error!(
-    "Feature \"blocking\" cannot be enabled at the same time as \"tokio\" or \"async-std\""
-);
 
 /// Returns true if the given acces token is a personal token.
 fn is_personal_token<S: Into<String>>(token: S) -> bool {
