@@ -33,6 +33,10 @@
 pub mod client;
 pub mod error;
 mod http;
+#[cfg(not(feature = "blocking"))]
+mod http_async;
+#[cfg(feature = "blocking")]
+mod http_blocking;
 pub mod limits;
 mod serde;
 
@@ -57,6 +61,11 @@ compile_error!("Feature \"native-tls\" and \"rustls-tls\" cannot be enabled at t
 
 #[cfg(all(feature = "rustls-tls", feature = "default-tls"))]
 compile_error!("Feature \"rustls-tls\" and \"default-tls\" cannot be enabled at the same time");
+
+#[cfg(all(feature = "blocking", any(feature = "tokio", feature = "async-std")))]
+compile_error!(
+    "Feature \"blocking\" cannot be enabled at the same time as \"tokio\" or \"async-std\""
+);
 
 /// Returns true if the given acces token is a personal token.
 fn is_personal_token<S: Into<String>>(token: S) -> bool {

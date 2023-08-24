@@ -36,6 +36,7 @@ pub(crate) enum Limit {
 }
 
 impl Limit {
+    #[cfg(not(feature = "blocking"))]
     pub(crate) fn try_from(response: &reqwest::Response) -> Option<Self> {
         match response.status().as_u16() {
             429 => {
@@ -81,6 +82,50 @@ impl Limit {
             _ => None,
         }
     }
+
+    #[cfg(feature = "blocking")]
+    pub(crate) fn try_from(response: &ureq::Response) -> Option<Self> {
+        match response.status() {
+            429 => {
+                // Rate limit
+                let scope = response.header(HEADER_RATE_SCOPE);
+                let limits = Limits::from_headers(
+                    response,
+                    HEADER_RATE_LIMIT,
+                    HEADER_RATE_REMAINING,
+                    HEADER_RATE_RESET,
+                )
+                .ok();
+
+                scope
+                    .zip(limits)
+                    .map(|(scope, limits)| Limit::Rate(scope.to_string(), limits))
+            }
+            430 => {
+                // Query or ingest limit
+                let query_limit = Limits::from_headers(
+                    response,
+                    HEADER_QUERY_LIMIT,
+                    HEADER_QUERY_REMAINING,
+                    HEADER_QUERY_RESET,
+                )
+                .map(Limit::Query)
+                .ok();
+                let ingest_limit = Limits::from_headers(
+                    response,
+                    HEADER_INGEST_LIMIT,
+                    HEADER_INGEST_REMAINING,
+                    HEADER_INGEST_RESET,
+                )
+                .map(Limit::Ingest)
+                .ok();
+
+                // Can't have both
+                query_limit.or(ingest_limit)
+            }
+            _ => None,
+        }
+    }
 }
 
 /// Rate-limit information.
@@ -110,6 +155,7 @@ impl Limits {
         self.remaining == 0 && self.reset > Utc::now()
     }
 
+    #[cfg(not(feature = "blocking"))]
     fn from_headers(
         headers: &header::HeaderMap,
         header_limit: &str,
@@ -130,6 +176,30 @@ impl Limits {
             reset: headers
                 .get(header_reset)
                 .and_then(|limit| limit.to_str().ok())
+                .and_then(|limit| limit.parse::<i64>().ok())
+                .and_then(|limit| Utc.timestamp_opt(limit, 0).single())
+                .ok_or(InvalidHeaderError::Reset)?,
+        })
+    }
+
+    #[cfg(feature = "blocking")]
+    fn from_headers(
+        response: &ureq::Response,
+        header_limit: &str,
+        header_remaining: &str,
+        header_reset: &str,
+    ) -> Result<Self, InvalidHeaderError> {
+        Ok(Limits {
+            limit: response
+                .header(header_limit)
+                .and_then(|limit| limit.parse::<u64>().ok())
+                .ok_or(InvalidHeaderError::Limit)?,
+            remaining: response
+                .header(header_remaining)
+                .and_then(|limit| limit.parse::<u64>().ok())
+                .ok_or(InvalidHeaderError::Remaining)?,
+            reset: response
+                .header(header_reset)
                 .and_then(|limit| limit.parse::<i64>().ok())
                 .and_then(|limit| Utc.timestamp_opt(limit, 0).single())
                 .ok_or(InvalidHeaderError::Reset)?,

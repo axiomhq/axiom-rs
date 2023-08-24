@@ -3,7 +3,9 @@
 use async_std::task::spawn_blocking;
 use bytes::Bytes;
 use flate2::{write::GzEncoder, Compression};
+#[cfg(not(feature = "blocking"))]
 use futures::Stream;
+use maybe_async::{async_impl, maybe_async};
 use reqwest::header;
 use serde::Serialize;
 use std::{
@@ -12,6 +14,7 @@ use std::{
 };
 #[cfg(feature = "tokio")]
 use tokio::task::spawn_blocking;
+#[cfg(not(feature = "blocking"))]
 use tokio_stream::StreamExt;
 use tracing::instrument;
 
@@ -78,12 +81,13 @@ impl Client {
     }
 
     /// Get client version.
-    pub async fn version(&self) -> String {
+    pub fn version(&self) -> String {
         env!("CARGO_PKG_VERSION").to_string()
     }
 
     /// Executes the given query specified using the Axiom Processing Language (APL).
     /// To learn more about APL, see the APL documentation at https://www.axiom.co/docs/apl/introduction.
+    #[maybe_async]
     #[instrument(skip(self, opts))]
     pub async fn query<S, O>(&self, apl: S, opts: O) -> Result<QueryResult>
     where
@@ -122,20 +126,17 @@ impl Client {
         let res = self.http_client.post(path, &req).await?;
 
         let saved_query_id = res
-            .headers()
-            .get("X-Axiom-History-Query-Id")
-            .map(|s| s.to_str())
-            .transpose()
-            .map_err(|_e| Error::InvalidQueryId)?
+            .get_header("X-Axiom-History-Query-Id")
             .map(|s| s.to_string());
 
-        let mut result = res.json::<QueryResult>().await?;
+        let mut result: QueryResult = res.json::<QueryResult>().await?;
         result.saved_query_id = saved_query_id;
 
         Ok(result)
     }
 
     /// Execute the given query on the dataset identified by its id.
+    #[maybe_async]
     #[instrument(skip(self, opts))]
     #[deprecated(
         since = "0.6.0",
@@ -162,13 +163,9 @@ impl Client {
         let res = self.http_client.post(path, &query).await?;
 
         let saved_query_id = res
-            .headers()
-            .get("X-Axiom-History-Query-Id")
-            .map(|s| s.to_str())
-            .transpose()
-            .map_err(|_e| Error::InvalidQueryId)?
+            .get_header("X-Axiom-History-Query-Id")
             .map(|s| s.to_string());
-        let mut result = res.json::<LegacyQueryResult>().await?;
+        let mut result: LegacyQueryResult = res.json::<LegacyQueryResult>().await?;
         result.saved_query_id = saved_query_id;
 
         Ok(result)
@@ -177,6 +174,7 @@ impl Client {
     /// Ingest events into the dataset identified by its id.
     /// Restrictions for field names (JSON object keys) can be reviewed here:
     /// <https://www.axiom.co/docs/usage/field-restrictions>.
+    #[maybe_async]
     #[instrument(skip(self, events))]
     pub async fn ingest<N, I, E>(&self, dataset_name: N, events: I) -> Result<IngestStatus>
     where
@@ -189,13 +187,24 @@ impl Client {
             .map(|event| serde_json::to_vec(&event).map_err(Error::Serialize))
             .collect();
         let json_payload = json_lines?.join(&b"\n"[..]);
+
+        #[cfg(not(feature = "blocking"))]
         let payload = spawn_blocking(move || {
             let mut gzip_payload = GzEncoder::new(Vec::new(), Compression::default());
             gzip_payload.write_all(&json_payload)?;
             gzip_payload.finish()
         })
         .await;
-        #[cfg(feature = "tokio")]
+        #[cfg(feature = "blocking")]
+        let payload = {
+            let mut gzip_payload = GzEncoder::new(Vec::new(), Compression::default());
+            gzip_payload
+                .write_all(&json_payload)
+                .map_err(Error::Encoding)?;
+            gzip_payload.finish()
+        };
+
+        #[cfg(all(feature = "tokio", not(feature = "blocking")))]
         let payload = payload.map_err(Error::JoinError)?;
         let payload = payload.map_err(Error::Encoding)?;
 
@@ -211,6 +220,7 @@ impl Client {
     /// Ingest data into the dataset identified by its id.
     /// Restrictions for field names (JSON object keys) can be reviewed here:
     /// <https://www.axiom.co/docs/usage/field-restrictions>.
+    #[maybe_async]
     #[instrument(skip(self, payload))]
     pub async fn ingest_bytes<N, P>(
         &self,
@@ -243,6 +253,7 @@ impl Client {
     /// with a backoff.
     /// Restrictions for field names (JSON object keys) can be reviewed here:
     /// <https://www.axiom.co/docs/usage/field-restrictions>.
+    #[async_impl]
     #[instrument(skip(self, stream))]
     pub async fn ingest_stream<N, S, E>(&self, dataset_name: N, stream: S) -> Result<IngestStatus>
     where
@@ -261,6 +272,7 @@ impl Client {
     }
 
     /// Like [`Client::ingest_stream`], but takes a stream that contains results.
+    #[async_impl]
     #[instrument(skip(self, stream))]
     pub async fn try_ingest_stream<N, S, I, E>(
         &self,
