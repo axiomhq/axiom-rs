@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use bitflags_serde_shim::impl_serde_for_bitflags;
 use chrono::{DateTime, Duration, Utc};
 use http::header::HeaderValue;
 use serde::{
@@ -888,25 +889,7 @@ bitflags! {
         const WalCached = 8;    // WAL is cached
     }
 }
-
-impl Serialize for CacheStatus {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_u32((*self).bits())
-    }
-}
-
-impl<'de> Deserialize<'de> for CacheStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let value: u32 = Deserialize::deserialize(deserializer)?;
-        Ok(Self::from_bits(value).unwrap_or_default())
-    }
-}
+impl_serde_for_bitflags!(CacheStatus);
 
 /// A message that is returned in the status of a query.
 #[derive(Serialize, Deserialize, Debug)]
