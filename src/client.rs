@@ -342,6 +342,7 @@ impl Builder {
         let env_fallback = self.env_fallback;
 
         let mut token = self.token.unwrap_or_default();
+        dbg!(token.len(), env_fallback);
         if token.is_empty() && env_fallback {
             token = env::var("AXIOM_TOKEN").unwrap_or_default();
         }
