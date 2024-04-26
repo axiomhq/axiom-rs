@@ -1,12 +1,14 @@
 # axiom-rs 
 
-<img src="https://github.com/axiomhq/axiom-rs/assets/1725839/7cb313d2-96f1-4cb2-928a-3b2c301b57ac" align="right" width="300" />
+<a href="https://axiom.co">
+  <img src="https://github.com/axiomhq/axiom-rs/assets/1725839/7cb313d2-96f1-4cb2-928a-3b2c301b57ac" align="right" width="300" />
+</a>
 
 [![docs.rs](https://docs.rs/axiom-rs/badge.svg)](https://docs.rs/axiom-rs/) [![build](https://img.shields.io/github/actions/workflow/status/axiomhq/axiom-rs/ci.yaml?branch=main&ghcache=unused)](https://github.com/axiomhq/axiom-rs/actions?query=workflow%3ACI) [![crates.io](https://img.shields.io/crates/v/axiom-rs.svg)](https://crates.io/crates/axiom-rs) [![License](https://img.shields.io/crates/l/axiom-rs)](LICENSE-APACHE)
 
 The official Rust bindings for the Axiom API.
 
-Add the following to your Cargo.toml:
+To install, add the following to your Cargo.toml:
 
 ```toml
 [dependencies]
