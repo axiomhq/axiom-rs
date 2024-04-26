@@ -21,43 +21,41 @@ Otherwise create a personal token in
 the organization ID from the settings page of the organization you want to
 access.
 
-Create and use a client like this:
+Create a client by providing a personal or api token and an org id:
 
 ```rust
-use axiom_rs::Client;
-use serde_json::json;
+let client = axiom_rs::Client::builder()
+    .with_token("my-token")
+    .with_org_id("my-org")
+    .build()?;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Build your client by providing a personal token and an org id:
-    let client = Client::builder()
-        .with_token("my-token")
-        .with_org_id("my-org")
-        .build()?;
+// Alternatively you autoconfigure the client from the environment variables
+// AXIOM_TOKEN and AXIOM_ORG_ID:
+let client = axiom_rs::Client::new()?;
+```
 
-    // Alternatively you autoconfigure the client from the environment variables
-    // AXIOM_TOKEN and AXIOM_ORG_ID:
-    let client = Client::new()?;
+Now you can create a dataset,
+```rust
+client.datasets.create("my-dataset", "").await?;
+```
 
-    client.datasets.create("my-dataset", "").await?;
+ingest into it,
+```rust
+client.ingest(
+    "my-dataset",
+    vec![json!({
+        "foo": "bar",
+    })],
+)
+.await?;
+```
 
-    client
-        .ingest(
-            "my-dataset",
-            vec![json!({
-                "foo": "bar",
-            })],
-        )
-        .await?;
-
-    let res = client
-        .query(r#"['my-dataset'] | where foo == "bar" | limit 100"#, None)
-        .await?;
-    println!("{:?}", res);
-
-    client.datasets.delete("my-dataset").await?;
-    Ok(())
-}
+and use the Axiom Processing Language (APL) to query the data:
+```rust
+let res = client
+    .query(r#"['my-dataset'] | where foo == "bar" | limit 100"#, None)
+    .await?;
+println!("{:?}", res);
 ```
 
 For further examples, head over to the [examples](examples) directory.
