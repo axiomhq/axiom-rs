@@ -2,3 +2,4 @@
 Cargo.lock
 /.envrc
 /examples/target
+.DS_Store

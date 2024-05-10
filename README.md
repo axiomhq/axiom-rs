@@ -1,7 +1,7 @@
-# axiom-rs 
+# axiom-rs
 
 <a href="https://axiom.co">
-  <img src="https://github.com/axiomhq/axiom-rs/assets/1725839/f8d89776-f399-49da-93c6-a8eaf4181248" align="right" width="250" height="500" />
+  <img src="./.github/images/axiom-theme-aware-vertical-banner.svg" align="right" width="250" height="500" />
 </a>
 
 [![docs.rs](https://docs.rs/axiom-rs/badge.svg)](https://docs.rs/axiom-rs/) [![build](https://img.shields.io/github/actions/workflow/status/axiomhq/axiom-rs/ci.yaml?branch=main&ghcache=unused)](https://github.com/axiomhq/axiom-rs/actions?query=workflow%3ACI) [![crates.io](https://img.shields.io/crates/v/axiom-rs.svg)](https://crates.io/crates/axiom-rs) [![License](https://img.shields.io/crates/l/axiom-rs)](LICENSE-APACHE)
@@ -37,11 +37,13 @@ let client = axiom_rs::Client::new()?;
 ```
 
 Now you can create a dataset,
+
 ```rust
 client.datasets.create("my-dataset", "").await?;
 ```
 
 ingest into it,
+
 ```rust
 client.ingest(
     "my-dataset",
@@ -53,6 +55,7 @@ client.ingest(
 ```
 
 and use the Axiom Processing Language (APL) to query the data:
+
 ```rust
 let res = client
     .query(r#"['my-dataset'] | where foo == "bar" | limit 100"#, None)
