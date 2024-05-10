@@ -2,8 +2,10 @@
 
 <a href="https://axiom.co">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./.github/images/axiom-github-banner-white.svg" align="right" width="250" height="500">
-  <img alt="Axiom.co banner" src="./.github/images/axiom-github-banner-black.svg" align="right" width="250" height="500">
+  <source media="(prefers-color-scheme: dark) and (min-width: 600px)" alt="Axiom.co banner" srcset="./.github/images/axiom-github-banner-light-vertical.svg">
+  <source media="(prefers-color-scheme: light) and (min-width: 600px)" alt="Axiom.co banner" srcset="./.github/images/axiom-github-banner-dark-vertical.svg">
+  <source media="(prefers-color-scheme: dark) and (max-width: 599px)" alt="Axiom.co banner" srcset="./.github/images/axiom-github-banner-light-horizontal.svg">
+  <img alt="Axiom.co banner" src="./.github/images/axiom-github-banner-dark-horizontal.svg" align="right">
 </picture>
 </a>
 
