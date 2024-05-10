@@ -1,7 +1,10 @@
 # axiom-rs
 
 <a href="https://axiom.co">
-  <img src="./.github/images/axiom-theme-aware-vertical-banner.svg" align="right" width="250" height="500" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./.github/images/axiom-github-banner-white.svg" align="right" width="250" height="500">
+  <img alt="Axiom.co banner" src="./.github/images/axiom-github-banner-black.svg" align="right" width="250" height="500">
+</picture>
 </a>
 
 [![docs.rs](https://docs.rs/axiom-rs/badge.svg)](https://docs.rs/axiom-rs/) [![build](https://img.shields.io/github/actions/workflow/status/axiomhq/axiom-rs/ci.yaml?branch=main&ghcache=unused)](https://github.com/axiomhq/axiom-rs/actions?query=workflow%3ACI) [![crates.io](https://img.shields.io/crates/v/axiom-rs.svg)](https://crates.io/crates/axiom-rs) [![License](https://img.shields.io/crates/l/axiom-rs)](LICENSE-APACHE)
