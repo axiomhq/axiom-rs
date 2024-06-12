@@ -1,26 +1,19 @@
-![axiom-rs: The official Rust bindings for the Axiom API](.github/images/banner-dark.svg#gh-dark-mode-only)
-![axiom-rs: The official Rust bindings for the Axiom API](.github/images/banner-light.svg#gh-light-mode-only)
+# axiom-rs
 
-<div align="center">
+<a href="https://axiom.co">
+<picture>
+  <source media="(prefers-color-scheme: dark) and (min-width: 600px)" alt="Axiom.co banner" srcset="./.github/images/axiom-github-banner-light-vertical.svg">
+  <source media="(prefers-color-scheme: light) and (min-width: 600px)" alt="Axiom.co banner" srcset="./.github/images/axiom-github-banner-dark-vertical.svg">
+  <source media="(prefers-color-scheme: dark) and (max-width: 599px)" alt="Axiom.co banner" srcset="./.github/images/axiom-github-banner-light-horizontal.svg">
+  <img alt="Axiom.co banner" src="./.github/images/axiom-github-banner-dark-horizontal.svg" align="right">
+</picture>
+</a>
 
-[![docs.rs](https://docs.rs/axiom-rs/badge.svg)](https://docs.rs/axiom-rs/)
-[![build](https://img.shields.io/github/actions/workflow/status/axiomhq/axiom-rs/ci.yaml?branch=main&ghcache=unused)](https://github.com/axiomhq/axiom-rs/actions?query=workflow%3ACI)
-[![crates.io](https://img.shields.io/crates/v/axiom-rs.svg)](https://crates.io/crates/axiom-rs)
-[![License](https://img.shields.io/crates/l/axiom-rs)](LICENSE-APACHE)
+[![docs.rs](https://docs.rs/axiom-rs/badge.svg)](https://docs.rs/axiom-rs/) [![build](https://img.shields.io/github/actions/workflow/status/axiomhq/axiom-rs/ci.yaml?branch=main&ghcache=unused)](https://github.com/axiomhq/axiom-rs/actions?query=workflow%3ACI) [![crates.io](https://img.shields.io/crates/v/axiom-rs.svg)](https://crates.io/crates/axiom-rs) [![License](https://img.shields.io/crates/l/axiom-rs)](LICENSE-APACHE)
 
-</div>
+The official Rust bindings for the Axiom API.
 
-[Axiom](https://axiom.co) unlocks observability at any scale.
-
-- **Ingest with ease, store without limits:** Axiom’s next-generation datastore enables ingesting petabytes of data with ultimate efficiency. Ship logs from Kubernetes, AWS, Azure, Google Cloud, DigitalOcean, Nomad, and others.
-- **Query everything, all the time:** Whether DevOps, SecOps, or EverythingOps, query all your data no matter its age. No provisioning, no moving data from cold/archive to “hot”, and no worrying about slow queries. All your data, all. the. time.
-- **Powerful dashboards, for continuous observability:** Build dashboards to collect related queries and present information that’s quick and easy to digest for you and your team. Dashboards can be kept private or shared with others, and are the perfect way to bring together data from different sources
-
-For more information check out the [official documentation](https://axiom.co/docs) and our [community Discord](https://axiom.co/discord).
-
-## Quickstart
-
-Add the following to your Cargo.toml:
+To install, add the following to your Cargo.toml:
 
 ```toml
 [dependencies]
@@ -35,43 +28,44 @@ Otherwise create a personal token in
 the organization ID from the settings page of the organization you want to
 access.
 
-Create and use a client like this:
+Create a client by providing a personal or api token and an org id:
 
 ```rust
-use axiom_rs::Client;
-use serde_json::json;
+let client = axiom_rs::Client::builder()
+    .with_token("my-token")
+    .with_org_id("my-org")
+    .build()?;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Build your client by providing a personal token and an org id:
-    let client = Client::builder()
-        .with_token("my-token")
-        .with_org_id("my-org")
-        .build()?;
+// Alternatively you autoconfigure the client from the environment variables
+// AXIOM_TOKEN and AXIOM_ORG_ID:
+let client = axiom_rs::Client::new()?;
+```
 
-    // Alternatively you autoconfigure the client from the environment variables
-    // AXIOM_TOKEN and AXIOM_ORG_ID:
-    let client = Client::new()?;
+Now you can create a dataset,
 
-    client.datasets.create("my-dataset", "").await?;
+```rust
+client.datasets.create("my-dataset", "").await?;
+```
 
-    client
-        .ingest(
-            "my-dataset",
-            vec![json!({
-                "foo": "bar",
-            })],
-        )
-        .await?;
+ingest into it,
 
-    let res = client
-        .query(r#"['my-dataset'] | where foo == "bar" | limit 100"#, None)
-        .await?;
-    println!("{:?}", res);
+```rust
+client.ingest(
+    "my-dataset",
+    vec![json!({
+        "foo": "bar",
+    })],
+)
+.await?;
+```
 
-    client.datasets.delete("my-dataset").await?;
-    Ok(())
-}
+and use the Axiom Processing Language (APL) to query the data:
+
+```rust
+let res = client
+    .query(r#"['my-dataset'] | where foo == "bar" | limit 100"#, None)
+    .await?;
+println!("{:?}", res);
 ```
 
 For further examples, head over to the [examples](examples) directory.
