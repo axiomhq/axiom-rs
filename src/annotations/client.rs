@@ -9,7 +9,7 @@ use tracing::instrument;
 
 use super::ListRequest;
 
-/// Provides methods to work with Axiom datasets.
+/// Provides methods to work with Axiom annotations.
 #[derive(Debug, Clone)]
 pub struct Client<'client> {
     http_client: &'client http::Client,
@@ -20,7 +20,7 @@ impl<'client> Client<'client> {
         Self { http_client }
     }
 
-    /// creates an annotaion
+    /// Creates an annotation
     ///
     /// # Errors
     /// If the API call fails
@@ -33,7 +33,7 @@ impl<'client> Client<'client> {
             .await
     }
 
-    /// gets an annotaion
+    /// Gets an annotation
     ///
     /// # Errors
     /// If the API call fails
@@ -46,7 +46,7 @@ impl<'client> Client<'client> {
             .await
     }
 
-    /// lists annotaions
+    /// Lists annotations
     ///
     /// # Errors
     /// If the API call fails
@@ -57,6 +57,33 @@ impl<'client> Client<'client> {
             .get(format!("/v2/annotations?{query_params}"))
             .await?
             .json()
+            .await
+    }
+
+    /// Updates an annotation
+    ///
+    /// # Errors
+    /// If the API call fails
+    #[instrument(skip(self))]
+    pub async fn update(
+        &self,
+        id: impl fmt::Display + fmt::Debug,
+        req: AnnotationRequest,
+    ) -> Result<Annotation> {
+        self.http_client
+            .put(format!("/v2/annotations/{id}"), req)
+            .await?
+            .json()
+            .await
+    }
+    /// Delets an annotation
+    ///
+    /// # Errors
+    /// If the API call fails
+    #[instrument(skip(self))]
+    pub async fn delete(&self, id: impl fmt::Display + fmt::Debug) -> Result<()> {
+        self.http_client
+            .delete(format!("/v2/annotations/{id}"))
             .await
     }
 }

@@ -89,7 +89,7 @@ impl Default for AnnotationBuilder<NeedsType> {
         Self {
             request: AnnotationRequest {
                 annotation_type: String::new(),
-                datasets: vec![],
+                datasets: Vec::new(),
                 description: None,
                 title: None,
                 url: None,
@@ -293,5 +293,160 @@ impl ListRequestBuilder {
     /// Builds the request
     pub fn build(self) -> ListRequest {
         self.request
+    }
+}
+
+/// A request to update an annotation.
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[serde(rename_all = "camelCase")]
+#[must_use]
+pub struct AnnotationUpdateRequest {
+    /// Type of the event marked by the annotation. Use only alphanumeric characters or hyphens. For example, "production-deployment".
+    #[serde(rename = "type")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    annotation_type: Option<String>,
+    /// Dataset names for which the annotation appears on charts
+    #[serde(skip_serializing_if = "Option::is_none")]
+    datasets: Option<Vec<String>>,
+    /// Explanation of the event the annotation marks on the charts
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+    /// Summary of the annotation that appears on the charts
+    #[serde(skip_serializing_if = "Option::is_none")]
+    title: Option<String>,
+    /// URL relevant for the event marked by the annotation. For example, link to GitHub pull request.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    url: Option<Url>,
+    /// Time the annotation marks on the charts. If you don't include this field, Axiom assigns the time of the API request to the annotation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    time: Option<chrono::DateTime<Utc>>,
+    ///End time of the annotation
+    #[serde(skip_serializing_if = "Option::is_none")]
+    end_time: Option<chrono::DateTime<Utc>>,
+}
+
+/// A builder for creating an annotation request.
+#[derive(PartialEq, Eq, Debug)]
+#[must_use]
+pub struct AnnotationUpdateBuilder {
+    request: AnnotationUpdateRequest,
+}
+
+impl AnnotationUpdateBuilder {
+    /// Builds the request
+    ///
+    /// # Errors
+    /// If the request is empty.
+    pub fn build(self) -> Result<AnnotationUpdateRequest, Error> {
+        let request = self.request;
+        if request.annotation_type.is_none()
+            && request.datasets.is_none()
+            && request.description.is_none()
+            && request.title.is_none()
+            && request.url.is_none()
+            && request.time.is_none()
+            && request.end_time.is_none()
+        {
+            return Err(Error::EmptyUpdate);
+        }
+        Ok(request)
+    }
+
+    /// Set the type of the annotation.
+    ///
+    /// Type of the event marked by the annotation. Use only alphanumeric characters or hyphens.
+    /// For example, "production-deployment".
+    pub fn with_type(self, annotation_type: &impl ToString) -> Self {
+        AnnotationUpdateBuilder {
+            request: AnnotationUpdateRequest {
+                annotation_type: Some(annotation_type.to_string()),
+                ..self.request
+            },
+        }
+    }
+
+    /// Set the datasets for which the annotation appears on charts.
+    pub fn with_datasets(self, datasets: Vec<String>) -> Self {
+        AnnotationUpdateBuilder {
+            request: AnnotationUpdateRequest {
+                datasets: Some(datasets),
+                ..self.request
+            },
+        }
+    }
+
+    /// Set the description of the annotation.
+    ///
+    /// Explanation of the event the annotation marks on the charts.
+    pub fn with_description(self, description: &impl ToString) -> Self {
+        Self {
+            request: AnnotationUpdateRequest {
+                description: Some(description.to_string()),
+                ..self.request
+            },
+        }
+    }
+
+    /// Set the title of the annotation.
+    ///
+    /// Summary of the annotation that appears on the charts
+    pub fn with_title(self, title: &impl ToString) -> Self {
+        Self {
+            request: AnnotationUpdateRequest {
+                title: Some(title.to_string()),
+                ..self.request
+            },
+        }
+    }
+
+    /// Set the URL of the annotation.
+    ///
+    /// URL relevant for the event marked by the annotation. For example, link to GitHub pull request.
+    pub fn with_url(self, url: Url) -> Self {
+        Self {
+            request: AnnotationUpdateRequest {
+                url: Some(url),
+                ..self.request
+            },
+        }
+    }
+
+    /// Set the (start) time of the annotation.
+    ///
+    /// Time the annotation marks on the charts. If you don't include this field,
+    /// Axiom assigns the time of the API request to the annotation.
+    ///
+    /// # Errors
+    /// If the start time is after the end time.
+    pub fn with_time(self, time: chrono::DateTime<Utc>) -> Result<Self, Error> {
+        if let Some(end_time) = self.request.end_time {
+            if time > end_time {
+                return Err(Error::InvalidTimeOrder);
+            }
+        }
+        Ok(Self {
+            request: AnnotationUpdateRequest {
+                time: Some(time),
+                ..self.request
+            },
+        })
+    }
+
+    /// Set the end time of the annotation.
+    ///
+    /// # Errors
+    /// If the start time is after the end time.
+    pub fn with_end_time(self, end_time: chrono::DateTime<Utc>) -> Result<Self, Error> {
+        if let Some(time) = self.request.time {
+            if time > end_time {
+                return Err(Error::InvalidTimeOrder);
+            }
+        }
+        Ok(Self {
+            request: AnnotationUpdateRequest {
+                end_time: Some(end_time),
+                ..self.request
+            },
+        })
     }
 }
