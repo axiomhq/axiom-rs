@@ -46,6 +46,7 @@ mod http;
 pub mod limits;
 mod serde;
 
+pub mod annotations;
 pub mod datasets;
 pub mod users;
 

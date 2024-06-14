@@ -33,7 +33,7 @@ backoff = { version = "0.4", features = ["futures"] }
 futures = "0.3"
 tokio = { version = "1", optional = true, features = ["rt", "sync"] }
 async-std = { version = "1", optional = true, features = ["tokio1"] }
-url = "2"
+url = { version = "2", features = ["serde"] }
 tracing = { version = "0.1" }
 tokio-stream = "0.1"
 bitflags = "2"

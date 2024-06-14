@@ -12,6 +12,9 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
 pub enum Error {
+    #[error("Invalid time order")]
+    /// Invalid time order.
+    InvalidTimeOrder,
     #[error("Missing token")]
     /// Missing token.
     MissingToken,

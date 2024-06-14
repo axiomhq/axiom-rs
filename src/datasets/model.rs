@@ -215,8 +215,8 @@ pub struct Info {
 }
 
 #[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct TrimRequest {
-    #[serde(rename = "maxDuration")]
     max_duration: String,
 }
 
@@ -387,7 +387,7 @@ impl Default for QueryOptions {
 /// The result format of an APL query.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum AplResultFormat {
     /// Legacy result format
     Legacy,
@@ -402,7 +402,7 @@ impl Default for AplResultFormat {
 /// The kind of a query.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum QueryKind {
     /// Analytics query
     Analytics,
@@ -841,7 +841,7 @@ pub struct QueryMessage {
 /// The priority of a query message.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Copy)]
 #[non_exhaustive]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum QueryMessagePriority {
     /// Trace message priority.
     Trace,

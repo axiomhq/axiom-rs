@@ -16,6 +16,7 @@ use tokio_stream::StreamExt;
 use tracing::instrument;
 
 use crate::{
+    annotations,
     datasets::{
         self, ContentEncoding, ContentType, IngestStatus, LegacyQuery, LegacyQueryOptions,
         LegacyQueryResult, Query, QueryOptions, QueryParams, QueryResult,
@@ -54,10 +55,7 @@ static API_URL: &str = "https://api.axiom.co";
 #[derive(Debug, Clone)]
 pub struct Client {
     http_client: http::Client,
-
     url: String,
-    datasets: datasets::Client,
-    users: users::Client,
 }
 
 impl Client {
@@ -75,16 +73,22 @@ impl Client {
         Builder::new()
     }
 
-    /// Get the dataset
+    /// Dataset API
     #[must_use]
-    pub fn datasets(&self) -> &datasets::Client {
-        &self.datasets
+    pub fn datasets(&self) -> datasets::Client {
+        datasets::Client::new(&self.http_client)
     }
 
-    /// Get the users
+    /// Users API
     #[must_use]
-    pub fn users(&self) -> &users::Client {
-        &self.users
+    pub fn users(&self) -> users::Client {
+        users::Client::new(&self.http_client)
+    }
+
+    /// Annotations API
+    #[must_use]
+    pub fn annotations(&self) -> annotations::Client {
+        annotations::Client::new(&self.http_client)
     }
 
     /// Get the API url
@@ -396,8 +400,6 @@ impl Builder {
         Ok(Client {
             http_client: http_client.clone(),
             url,
-            datasets: datasets::Client::new(http_client.clone()),
-            users: users::Client::new(http_client),
         })
     }
 }
