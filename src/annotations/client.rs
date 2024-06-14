@@ -1,13 +1,9 @@
 use std::fmt;
 
-use crate::{
-    annotations::model::{Annotation, AnnotationRequest},
-    error::Result,
-    http,
-};
+use crate::{annotations::Annotation, error::Result, http};
 use tracing::instrument;
 
-use super::ListRequest;
+use super::requests;
 
 /// Provides methods to work with Axiom annotations.
 #[derive(Debug, Clone)]
@@ -25,7 +21,7 @@ impl<'client> Client<'client> {
     /// # Errors
     /// If the API call fails
     #[instrument(skip(self))]
-    pub async fn create(&self, req: AnnotationRequest) -> Result<Annotation> {
+    pub async fn create(&self, req: requests::Create) -> Result<Annotation> {
         self.http_client
             .post("/v2/annotations", req)
             .await?
@@ -51,7 +47,7 @@ impl<'client> Client<'client> {
     /// # Errors
     /// If the API call fails
     #[instrument(skip(self))]
-    pub async fn list(&self, req: ListRequest) -> Result<Vec<Annotation>> {
+    pub async fn list(&self, req: requests::List) -> Result<Vec<Annotation>> {
         let query_params = serde_qs::to_string(&req)?;
         self.http_client
             .get(format!("/v2/annotations?{query_params}"))
@@ -68,7 +64,7 @@ impl<'client> Client<'client> {
     pub async fn update(
         &self,
         id: impl fmt::Display + fmt::Debug,
-        req: AnnotationRequest,
+        req: requests::Create,
     ) -> Result<Annotation> {
         self.http_client
             .put(format!("/v2/annotations/{id}"), req)

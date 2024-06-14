@@ -18,6 +18,12 @@ pub enum Error {
     #[error("Empty update")]
     /// Empty update.
     EmptyUpdate,
+    #[error("Empty datasets")]
+    /// Empty datasets.
+    EmptyDatasets,
+    #[error("Empty type")]
+    /// Empty type.
+    EmptyType,
     #[error("Missing token")]
     /// Missing token.
     MissingToken,

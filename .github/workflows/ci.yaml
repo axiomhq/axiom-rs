@@ -70,10 +70,13 @@ jobs:
             url: TESTING_DEV_API_URL
             token: TESTING_DEV_TOKEN
             org_id: TESTING_DEV_ORG_ID
+            flags: --features integration-tests
           - environment: staging
             url: TESTING_STAGING_API_URL
             token: TESTING_STAGING_TOKEN
             org_id: TESTING_STAGING_ORG_ID
+            flags: --features integration-tests
+
     steps:
       - uses: actions/checkout@v3
       - uses: actions/cache@v3
