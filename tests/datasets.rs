@@ -1,4 +1,4 @@
-use async_trait::async_trait;
+#![cfg(feature = "integration-tests")]
 use axiom_rs::{datasets::*, Client};
 use chrono::{Duration, Utc};
 use futures::StreamExt;
@@ -11,7 +11,6 @@ struct Context {
     dataset: Dataset,
 }
 
-#[async_trait]
 impl AsyncTestContext for Context {
     async fn setup() -> Context {
         let client = Client::new().unwrap();
@@ -22,9 +21,13 @@ impl AsyncTestContext for Context {
         );
 
         // Delete dataset in case we have a zombie
-        client.datasets.delete(&dataset_name).await.ok();
+        client.datasets().delete(&dataset_name).await.ok();
 
-        let dataset = client.datasets.create(&dataset_name, "bar").await.unwrap();
+        let dataset = client
+            .datasets()
+            .create(&dataset_name, "bar")
+            .await
+            .unwrap();
         assert_eq!(dataset_name.clone(), dataset.name);
         assert_eq!("bar".to_string(), dataset.description);
 
@@ -32,7 +35,7 @@ impl AsyncTestContext for Context {
     }
 
     async fn teardown(self) {
-        self.client.datasets.delete(self.dataset.name).await.ok();
+        self.client.datasets().delete(self.dataset.name).await.ok();
     }
 }
 
@@ -42,7 +45,6 @@ impl AsyncTestContext for Context {
 async fn test_datasets(ctx: &mut Context) {
     test_datasets_impl(ctx).await;
 }
-
 #[cfg(feature = "async-std")]
 #[test_context(Context)]
 #[async_std::test]
@@ -54,7 +56,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
     // Let's update the dataset.
     let dataset = ctx
         .client
-        .datasets
+        .datasets()
         .update(
             &ctx.dataset.name,
             "This is a soon to be filled test dataset",
@@ -64,14 +66,14 @@ async fn test_datasets_impl(ctx: &mut Context) {
     ctx.dataset = dataset;
 
     // Get the dataset and make sure it matches what we have updated it to.
-    let dataset = ctx.client.datasets.get(&ctx.dataset.name).await.unwrap();
+    let dataset = ctx.client.datasets().get(&ctx.dataset.name).await.unwrap();
     assert_eq!(ctx.dataset.name, dataset.name);
     assert_eq!(ctx.dataset.name, dataset.name);
     assert_eq!(ctx.dataset.description, dataset.description);
 
     // List all datasets and make sure the created dataset is part of that
     // list.
-    let datasets = ctx.client.datasets.list().await.unwrap();
+    let datasets = ctx.client.datasets().list().await.unwrap();
     datasets
         .iter()
         .find(|dataset| dataset.name == ctx.dataset.name)
@@ -169,7 +171,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
     tokio::time::sleep(StdDuration::from_secs(15)).await;
 
     // Get the dataset info and make sure four events have been ingested.
-    let info = ctx.client.datasets.info(&ctx.dataset.name).await.unwrap();
+    let info = ctx.client.datasets().info(&ctx.dataset.name).await.unwrap();
     assert_eq!(ctx.dataset.name, info.stat.name);
     assert_eq!(4327, info.stat.num_events);
     assert!(info.fields.len() > 0);
@@ -282,7 +284,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
 
     // Trim the dataset down to a minimum.
     ctx.client
-        .datasets
+        .datasets()
         .trim(&ctx.dataset.name, Duration::seconds(1))
         .await
         .unwrap();

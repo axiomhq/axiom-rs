@@ -15,15 +15,20 @@ include = ["src/**/*.rs", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 resolver = "2"
 
 [dependencies]
-reqwest = { version = "0.11", default-features = false, features = ["json", "stream", "gzip", "blocking"] }
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "stream",
+    "gzip",
+    "blocking",
+] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
-serde_qs = "0.8"
+serde_qs = "0.13"
 thiserror = "1"
 bytes = "1"
 flate2 = "1"
-http = "0.2"
+http = "1"
 backoff = { version = "0.4", features = ["futures"] }
 futures = "0.3"
 tokio = { version = "1", optional = true, features = ["rt", "sync"] }
@@ -37,11 +42,9 @@ bitflags_serde_shim = "0.2.4"
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
 async-std = { version = "1", features = ["attributes"] }
-serde_test = "1"
-test-context = "0.1"
-async-trait = "0.1"
+test-context = "0.3"
 futures-util = "0.3"
-httpmock = "0.6"
+httpmock = "0.7"
 structopt = "0.3"
 tracing-subscriber = { version = "0.3", features = ["ansi", "env-filter"] }
 
@@ -52,3 +55,5 @@ async-std = ["backoff/async-std", "dep:async-std"]
 default-tls = ["reqwest/default-tls"]
 native-tls = ["reqwest/native-tls"]
 rustls-tls = ["reqwest/rustls-tls"]
+# require a set uo environment variable to run the integration tests
+integration-tests = []

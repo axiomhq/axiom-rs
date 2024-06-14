@@ -1,20 +1,19 @@
+#![allow(deprecated)] // we need this to be allowed to declare depricated code
 use bitflags::bitflags;
 use bitflags_serde_shim::impl_serde_for_bitflags;
 use chrono::{DateTime, Duration, Utc};
 use http::header::HeaderValue;
 use serde::{
-    de::{self, Error as SerdeError, Unexpected, Visitor},
+    de::{self, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
 };
 use serde_json::value::Value as JsonValue;
 use std::{
     collections::HashMap,
-    convert::TryFrom,
     fmt::{self, Display},
     ops::Add,
     str::FromStr,
 };
-use thiserror::Error;
 
 use crate::serde::{deserialize_null_default, empty_string_as_none};
 
@@ -37,6 +36,7 @@ pub enum ContentType {
 }
 
 impl ContentType {
+    /// Returns the content type as a string.
     pub fn as_str(&self) -> &'static str {
         match self {
             ContentType::Json => "application/json",
@@ -84,6 +84,7 @@ pub enum ContentEncoding {
 }
 
 impl ContentEncoding {
+    /// Returns the content encoding as a string.
     pub fn as_str(&self) -> &'static str {
         match self {
             ContentEncoding::Identity => "",
@@ -238,6 +239,7 @@ pub struct TrimResult {
         note = "This field is deprecated and will be removed in a future version."
     )]
     #[serde(rename = "numDeleted")]
+    #[allow(deprecated, warnings)]
     pub blocks_deleted: u64,
 }
 
@@ -318,10 +320,15 @@ pub(crate) struct DatasetUpdateRequest {
 #[derive(Serialize, Deserialize, Debug, Default, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Query {
+    /// The APL of the query to execute
     pub apl: String,
+    /// Start time of the query.
     pub start_time: Option<DateTime<Utc>>,
+    /// End time of the query.
     pub end_time: Option<DateTime<Utc>>,
+    /// cursor for the query
     pub cursor: Option<String>,
+    /// Specifies whether the event that matches the cursor should be included or not
     pub include_cursor: bool,
 }
 
@@ -340,15 +347,15 @@ pub(crate) struct QueryParams {
 pub struct QueryOptions {
     /// The start time of the query.
     pub start_time: Option<DateTime<Utc>>,
-    // The end time of the query.
+    /// The end time of the query.
     pub end_time: Option<DateTime<Utc>>,
-    // The cursor for use in pagination.
+    /// The cursor for use in pagination.
     pub cursor: Option<String>,
-    // Specifies whether the event that matches the cursor should be
-    // included in the result.
+    /// Specifies whether the event that matches the cursor should be
+    /// included in the result.
     pub include_cursor: bool,
 
-    // Omits the query cache.
+    /// Omits the query cache.
     pub no_cache: bool,
     /// Save the query on the server, if set to `true`. The ID of the saved query
     /// is returned with the query result as part of the response.
@@ -357,7 +364,7 @@ pub struct QueryOptions {
     // for the // `saveAsKind` query param. For user experience, we use a bool
     // here instead of forcing the user to set the value to `query.APL`.
     pub save: bool,
-    // Format specifies the format of the APL query. Defaults to Legacy.
+    /// Format specifies the format of the APL query. Defaults to Legacy.
     pub format: AplResultFormat,
 }
 
@@ -376,21 +383,12 @@ impl Default for QueryOptions {
 }
 
 /// The result format of an APL query.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
+#[serde(rename_all = "lowercase")]
 pub enum AplResultFormat {
+    /// Legacy result format
     Legacy,
-}
-
-impl Serialize for AplResultFormat {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            AplResultFormat::Legacy => serializer.serialize_str("legacy"),
-        }
-    }
 }
 
 impl Default for AplResultFormat {
@@ -400,39 +398,16 @@ impl Default for AplResultFormat {
 }
 
 /// The kind of a query.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
+#[serde(rename_all = "lowercase")]
 pub enum QueryKind {
+    /// Analytics query
     Analytics,
+    /// Streaming query
     Stream,
-    Apl, // Read-only, don't use this for requests.
-}
-
-impl Serialize for QueryKind {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            QueryKind::Analytics => serializer.serialize_str("analytics"),
-            QueryKind::Stream => serializer.serialize_str("stream"),
-            QueryKind::Apl => serializer.serialize_str("apl"),
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for QueryKind {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        match String::deserialize(deserializer)?.as_str() {
-            "analytics" => Ok(QueryKind::Analytics),
-            "stream" => Ok(QueryKind::Stream),
-            "apl" => Ok(QueryKind::Apl),
-            _ => Err(D::Error::custom("unknown query kind")),
-        }
-    }
+    /// APL query,   Read-only, don't use this for requests.
+    Apl,
 }
 
 impl Default for QueryKind {
@@ -443,7 +418,7 @@ impl Default for QueryKind {
 
 /// A query that gets executed on a dataset.
 /// If you're looking for the APL query, check out [`Query`].
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct LegacyQuery {
     /// Start time of the query.
@@ -475,6 +450,7 @@ pub struct LegacyQuery {
     /// orders.
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub virtual_fields: Vec<VirtualField>,
+    /// Pricections for the query result.
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub projections: Vec<Projection>,
     /// The query cursor. Should be set to the cursor returned with a previous
@@ -490,26 +466,6 @@ pub struct LegacyQuery {
     pub continuation_token: String,
 }
 
-impl Default for LegacyQuery {
-    fn default() -> Self {
-        LegacyQuery {
-            start_time: None,
-            end_time: None,
-            resolution: "".to_string(),
-            aggregations: vec![],
-            filter: None,
-            group_by: vec![],
-            order: vec![],
-            limit: 0,
-            virtual_fields: vec![],
-            projections: vec![],
-            cursor: "".to_string(),
-            include_cursor: false,
-            continuation_token: "".to_string(),
-        }
-    }
-}
-
 /// A field that is projected to the query result.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Projection {
@@ -523,29 +479,46 @@ pub struct Projection {
 #[derive(Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum AggregationOp {
+    /// [count](https://axiom.co/docs/apl/aggregation-function/statistical-functions#count())
     Count,
+    /// [dcount](https://axiom.co/docs/apl/aggregation-function/statistical-functions#dcount())
     CountDistinct,
+    /// [make_set](https://axiom.co/docs/apl/aggregation-function/statistical-functions#make-set())
     MakeSet,
+    /// [make_set_if](https://axiom.co/docs/apl/aggregation-function/statistical-functions#make-set-if())
     MakeSetIf,
 
-    // Only works for numbers.
+    /// [sum](https://axiom.co/docs/apl/aggregation-function/statistical-functions#sum())
     Sum,
+    /// [avg](https://axiom.co/docs/apl/aggregation-function/statistical-functions#avg())
     Avg,
+    /// [min](https://axiom.co/docs/apl/aggregation-function/statistical-functions#min())
     Min,
+    /// [max](https://axiom.co/docs/apl/aggregation-function/statistical-functions#max())
     Max,
+    /// [topk](https://axiom.co/docs/apl/aggregation-function/statistical-functions#topk())
     Topk,
+    /// [percentile](https://axiom.co/docs/apl/aggregation-function/statistical-functions#percentile(),-percentiles-array())
     Percentiles,
+    /// [histogram](https://axiom.co/docs/apl/aggregation-function/statistical-functions#histogram())
     Histogram,
+    /// [stdev](https://axiom.co/docs/apl/aggregation-function/statistical-functions#stdev())
     StandardDeviation,
+    /// [variance](https://axiom.co/docs/apl/aggregation-function/statistical-functions#variance())
     Variance,
+    /// [argmin](https://axiom.co/docs/apl/aggregation-function/statistical-functions#argmin())
     ArgMin,
+    /// [argmax](https://axiom.co/docs/apl/aggregation-function/statistical-functions#argmax())
     ArgMax,
 
-    // Read-only. Not to be used for query requests. Only in place to support
-    // the APL query result.
+    /// Read-only. Not to be used for query requests. Only in place to support the APL query result.
+    /// [countif](https://axiom.co/docs/apl/aggregation-function/statistical-functions#countif())
     CountIf,
+    /// Read-only. Not to be used for query requests. Only in place to support the APL query result.
+    /// [dcountif](https://axiom.co/docs/apl/aggregation-function/statistical-functions#dcountif())
     DistinctIf,
 
+    /// Unknown aggregation operation.
     Unknown(String),
 }
 
@@ -638,124 +611,79 @@ pub struct Aggregation {
     pub argument: Option<JsonValue>,
 }
 
-/// Supported filter operations.
-#[derive(Debug, PartialEq, Eq)]
+/// Supported filter operations. Supported types listed behind each operation.
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
+#[serde(rename_all = "lowercase")]
 pub enum FilterOp {
+    /// Logical AND
     And,
+    /// Logical OR
     Or,
+    /// Logical NOT
     Not,
 
     // Works for strings and numbers.
+    /// equality (string, number)
+    #[serde(rename = "==")]
     Equal,
+    /// negated equality (string, number)
+    #[serde(rename = "!=")]
     NotEqual,
+    /// existance (string, number)
     Exists,
+    /// negated existance (string, number)
     NotExists,
 
     // Only works for numbers.
+    /// greater than (number)
+    #[serde(rename = ">")]
     GreaterThan,
+    /// greater than or equal (number)
+    #[serde(rename = ">=")]
     GreaterThanEqual,
+    /// less than (number)
+    #[serde(rename = "<")]
     LessThan,
+    /// less than or equal (number)
+    #[serde(rename = "<=")]
     LessThanEqual,
 
     // Only works for strings.
+    /// starts with (string)
     StartsWith,
+    /// negated starts with (string)
     NotStartsWith,
+    /// ends with (string)
     EndsWith,
+    /// negated ends with (string)
     NotEndsWith,
+    /// regular expression (string)
     Regexp,
+    /// negated regular expression (string)
     NotRegexp,
 
     // Works for strings and arrays.
+    /// contains (string, array)
     Contains,
+    /// negated contains (string, array)
     NotContains,
-}
-
-impl Serialize for FilterOp {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(match self {
-            FilterOp::And => "and",
-            FilterOp::Or => "or",
-            FilterOp::Not => "not",
-            FilterOp::Equal => "==",
-            FilterOp::NotEqual => "!=",
-            FilterOp::Exists => "exists",
-            FilterOp::NotExists => "not-exists",
-            FilterOp::GreaterThan => ">",
-            FilterOp::GreaterThanEqual => ">=",
-            FilterOp::LessThan => "<",
-            FilterOp::LessThanEqual => "<=",
-            FilterOp::StartsWith => "starts-with",
-            FilterOp::NotStartsWith => "not-starts-with",
-            FilterOp::EndsWith => "ends-with",
-            FilterOp::NotEndsWith => "not-ends-with",
-            FilterOp::Regexp => "regexp",
-            FilterOp::NotRegexp => "not-regexp",
-            FilterOp::Contains => "contains",
-            FilterOp::NotContains => "not-contains",
-        })
-    }
-}
-
-struct FilterOpVisitor;
-
-impl<'de> Visitor<'de> for FilterOpVisitor {
-    type Value = FilterOp;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "a valid filter op string")
-    }
-
-    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        match s {
-            "and" => Ok(FilterOp::And),
-            "or" => Ok(FilterOp::Or),
-            "not" => Ok(FilterOp::Not),
-            "==" => Ok(FilterOp::Equal),
-            "!=" => Ok(FilterOp::NotEqual),
-            "exists" => Ok(FilterOp::Exists),
-            "not-exists" => Ok(FilterOp::NotExists),
-            ">" => Ok(FilterOp::GreaterThan),
-            ">=" => Ok(FilterOp::GreaterThanEqual),
-            "<" => Ok(FilterOp::LessThan),
-            "<=" => Ok(FilterOp::LessThanEqual),
-            "starts-with" => Ok(FilterOp::StartsWith),
-            "not-starts-with" => Ok(FilterOp::NotStartsWith),
-            "ends-with" => Ok(FilterOp::EndsWith),
-            "not-ends-with" => Ok(FilterOp::NotEndsWith),
-            "regexp" => Ok(FilterOp::Regexp),
-            "not-regexp" => Ok(FilterOp::NotRegexp),
-            "contains" => Ok(FilterOp::Contains),
-            "not-contains" => Ok(FilterOp::NotContains),
-            _ => Err(de::Error::invalid_value(Unexpected::Str(s), &self)),
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for FilterOp {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_str(FilterOpVisitor {})
-    }
 }
 
 /// A filter is applied to a query.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Filter {
+    /// The operation of the filter.
     pub op: FilterOp,
+    /// The field to filter on.
     pub field: String,
+    /// The value to filter against.
     pub value: JsonValue,
+    /// If the filter should be case insensitive.
     #[serde(default)]
     pub case_insensitive: bool,
+    /// Child filters that are applied to the filter.
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub children: Vec<Filter>,
 }
@@ -795,10 +723,13 @@ pub struct VirtualField {
 /// The parameters for a query.
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct LegacyQueryOptions {
+    /// Duration of the stream
     #[serde(rename = "streaming-duration")]
     pub streaming_duration: Option<String>, // TODO: Implement custom type to {de,}serialize to/from go string
+    /// If the query should not be cached.
     #[serde(rename = "no-cache")]
     pub no_cache: bool,
+    /// The kind to save the query wit.
     #[serde(rename = "saveAsKind")]
     pub save_as_kind: QueryKind,
 }
@@ -812,6 +743,7 @@ pub struct QueryResult {
     // NOTE: The following is copied from QueryResult. Maybe we should have a macro?
     /// The status of the query result.
     pub status: QueryStatus,
+    /// The datasets that were queried.
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub dataset_names: Vec<String>,
     /// The events that matched the query.
@@ -883,10 +815,14 @@ bitflags! {
     /// The cache status of the query.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
     pub struct CacheStatus: u32 {
+        /// cache miss
         const Miss = 1;
-        const Materialized = 2; // Filtered rows
-        const Results = 4;      // Aggregated and grouped records
-        const WalCached = 8;    // WAL is cached
+        /// Filtered rows
+        const Materialized = 2;
+        /// Aggregated and grouped records
+        const Results = 4;
+        /// WAL is cached
+        const WalCached = 8;
     }
 }
 impl_serde_for_bitflags!(CacheStatus);
@@ -901,125 +837,40 @@ pub struct QueryMessage {
 }
 
 /// The priority of a query message.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Copy)]
 #[non_exhaustive]
+#[serde(rename_all = "lowercase")]
 pub enum QueryMessagePriority {
+    /// Trace message priority.
     Trace,
+    /// Debug message priority.
     Debug,
+    /// Info message priority.
     Info,
+    /// Warn message priority.
     Warn,
+    /// Error message priority.
     Error,
+    /// Fatal message priority.
     Fatal,
 }
 
-impl std::fmt::Display for QueryMessagePriority {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            QueryMessagePriority::Trace => "trace",
-            QueryMessagePriority::Debug => "debug",
-            QueryMessagePriority::Info => "info",
-            QueryMessagePriority::Warn => "warn",
-            QueryMessagePriority::Error => "error",
-            QueryMessagePriority::Fatal => "fatal",
-        })
-    }
-}
-
-#[derive(Error, Debug)]
-pub enum ParseQueryMessagePriorityError {
-    #[error("Unknown item: {0}")]
-    UnknownItem(String),
-}
-
-impl TryFrom<&str> for QueryMessagePriority {
-    type Error = ParseQueryMessagePriorityError;
-
-    fn try_from(s: &str) -> Result<Self, <QueryMessagePriority as TryFrom<&str>>::Error> {
-        match s {
-            "trace" => Ok(QueryMessagePriority::Trace),
-            "debug" => Ok(QueryMessagePriority::Debug),
-            "info" => Ok(QueryMessagePriority::Info),
-            "warn" => Ok(QueryMessagePriority::Warn),
-            "error" => Ok(QueryMessagePriority::Error),
-            "fatal" => Ok(QueryMessagePriority::Fatal),
-            item => Err(ParseQueryMessagePriorityError::UnknownItem(
-                item.to_string(),
-            )),
-        }
-    }
-}
-
-impl Serialize for QueryMessagePriority {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(self.to_string().as_str())
-    }
-}
-
-impl<'de> Deserialize<'de> for QueryMessagePriority {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let value: &str = Deserialize::deserialize(deserializer)?;
-        Self::try_from(value).map_err(serde::de::Error::custom)
-    }
-}
-
 /// The code of a message that is returned in the status of a query.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Copy)]
 #[non_exhaustive]
+#[serde(rename_all = "snake_case")]
 pub enum QueryMessageCode {
-    Unknown,
+    /// Failed to finalize a virtual field.
     VirtualFieldFinalizeError,
+    /// Missing column in the dataset.
     MissingColumn,
+    /// Default limit warning.
     DefaultLimitWarning,
+    /// License limit for query warning.
     LicenseLimitForQueryWarning,
-}
-
-impl std::fmt::Display for QueryMessageCode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            QueryMessageCode::Unknown => "unknown",
-            QueryMessageCode::VirtualFieldFinalizeError => "virtual_field_finalize_error",
-            QueryMessageCode::MissingColumn => "missing_column",
-            QueryMessageCode::DefaultLimitWarning => "default_limit_warning",
-            QueryMessageCode::LicenseLimitForQueryWarning => "license_limit_for_query_warning",
-        })
-    }
-}
-
-impl From<&str> for QueryMessageCode {
-    fn from(s: &str) -> Self {
-        match s {
-            "virtual_field_finalize_error" => QueryMessageCode::VirtualFieldFinalizeError,
-            "missing_column" => QueryMessageCode::MissingColumn,
-            "default_limit_warning" => QueryMessageCode::DefaultLimitWarning,
-            "license_limit_for_query_warning" => QueryMessageCode::LicenseLimitForQueryWarning,
-            _ => QueryMessageCode::Unknown,
-        }
-    }
-}
-
-impl Serialize for QueryMessageCode {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(self.to_string().as_str())
-    }
-}
-
-impl<'de> Deserialize<'de> for QueryMessageCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let value: &str = Deserialize::deserialize(deserializer)?;
-        Ok(Self::from(value))
-    }
+    /// Other unknown error
+    #[serde(other)]
+    Unknown,
 }
 
 /// An event that matched a query and is thus part of the result set.
@@ -1053,8 +904,11 @@ pub struct Timeseries {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Interval {
+    /// The start time of the interval.
     pub start_time: DateTime<Utc>,
+    /// The end time of the interval.
     pub end_time: DateTime<Utc>,
+    /// The groups of the interval.
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub groups: Vec<EntryGroup>,
 }
@@ -1062,35 +916,55 @@ pub struct Interval {
 /// A group of queried event.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EntryGroup {
+    /// The unique ID of the group.
     pub id: u64,
+    /// The data of the group.
     pub group: HashMap<String, JsonValue>,
+    /// The aggregations of the group.
     pub aggregations: Vec<EntryGroupAgg>,
 }
 
 /// An aggregation which is part of a group of queried events.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EntryGroupAgg {
+    /// The alias of the aggregation.
     #[serde(rename = "op")]
     pub alias: String,
+    /// The value of the aggregation.
     pub value: JsonValue,
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use serde_test::{assert_de_tokens, assert_tokens, Token};
 
     #[test]
     fn test_aggregation_op() {
-        let count = AggregationOp::Count;
-        assert_tokens(&count, &[Token::Str("count")]);
-        assert_de_tokens(&count, &[Token::Str("count")]);
+        let enum_repr = AggregationOp::Count;
+        let json_repr = r#""count""#;
+        assert_eq!(serde_json::to_string(&enum_repr).unwrap(), json_repr);
+        assert_eq!(
+            serde_json::from_str::<AggregationOp>(json_repr).unwrap(),
+            enum_repr
+        );
     }
 
     #[test]
     fn test_filter_op() {
-        let and = FilterOp::And;
-        assert_tokens(&and, &[Token::Str("and")]);
-        assert_de_tokens(&and, &[Token::Str("and")]);
+        let enum_repr = FilterOp::And;
+        let json_repr = r#""and""#;
+        assert_eq!(serde_json::to_string(&enum_repr).unwrap(), json_repr);
+        assert_eq!(
+            serde_json::from_str::<FilterOp>(json_repr).unwrap(),
+            enum_repr
+        );
+
+        let enum_repr = FilterOp::Equal;
+        let json_repr = r#""==""#;
+        assert_eq!(serde_json::to_string(&enum_repr).unwrap(), json_repr);
+        assert_eq!(
+            serde_json::from_str::<FilterOp>(json_repr).unwrap(),
+            enum_repr
+        );
     }
 }

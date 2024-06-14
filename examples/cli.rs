@@ -65,24 +65,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match opt {
         Opt::Datasets(datasets) => match datasets {
             Datasets::List => client
-                .datasets
+                .datasets()
                 .list()
                 .await?
                 .into_iter()
                 .for_each(|dataset| {
                     println!("{:?}", dataset);
                 }),
-            Datasets::Get { name } => println!("{:?}", client.datasets.get(&name).await?),
-            Datasets::Info { name } => println!("{:?}", client.datasets.info(&name).await?),
+            Datasets::Get { name } => println!("{:?}", client.datasets().get(&name).await?),
+            Datasets::Info { name } => println!("{:?}", client.datasets().info(&name).await?),
             Datasets::Update { name, description } => {
-                let dataset = client.datasets.update(&name, description).await?;
+                let dataset = client.datasets().update(&name, description).await?;
                 println!("{:?}", dataset);
             }
-            Datasets::Delete { name } => client.datasets.delete(&name).await?,
+            Datasets::Delete { name } => client.datasets().delete(&name).await?,
             Datasets::Trim { name, seconds } => println!(
                 "{:?}",
                 client
-                    .datasets
+                    .datasets()
                     .trim(&name, Duration::from_secs(seconds))
                     .await?
             ),
@@ -105,7 +105,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
         Opt::Users(users) => match users {
             Users::Current => {
-                let user = client.users.current().await?;
+                let user = client.users().current().await?;
                 println!("{:?}", user);
             }
         },

@@ -33,7 +33,7 @@ static API_URL: &str = "https://api.axiom.co";
 /// You can create it using [`Client::builder`] or [`Client::new`].
 ///
 /// # Examples
-/// ```
+/// ```no_run
 /// use axiom_rs::{Client, Error};
 ///
 /// fn main() -> Result<(), Error> {
@@ -56,8 +56,8 @@ pub struct Client {
     http_client: http::Client,
 
     url: String,
-    pub datasets: datasets::Client,
-    pub users: users::Client,
+    datasets: datasets::Client,
+    users: users::Client,
 }
 
 impl Client {
@@ -71,15 +71,25 @@ impl Client {
         Builder::new()
     }
 
-    /// Get the API url (cloned).
+    /// Get the dataset
+    pub fn datasets(&self) -> &datasets::Client {
+        &self.datasets
+    }
+
+    /// Get the users
+    pub fn users(&self) -> &users::Client {
+        &self.users
+    }
+
+    /// Get the API url
     #[doc(hidden)]
-    pub fn url(&self) -> String {
-        self.url.clone()
+    pub fn url(&self) -> &str {
+        &self.url
     }
 
     /// Get client version.
-    pub async fn version(&self) -> String {
-        env!("CARGO_PKG_VERSION").to_string()
+    pub async fn version(&self) -> &str {
+        env!("CARGO_PKG_VERSION")
     }
 
     /// Executes the given query specified using the Axiom Processing Language (APL).

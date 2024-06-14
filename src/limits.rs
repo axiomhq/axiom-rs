@@ -106,6 +106,7 @@ impl Display for Limits {
 }
 
 impl Limits {
+    /// Returns `true` if the rate limit has been exceeded.
     pub fn is_exceeded(&self) -> bool {
         self.remaining == 0 && self.reset > Utc::now()
     }

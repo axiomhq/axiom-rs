@@ -365,7 +365,7 @@ mod test {
             .with_token("xapt-nope")
             .build()?;
 
-        match client.datasets.list().await {
+        match client.datasets().list().await {
             Err(Error::RateLimitExceeded { scope, limits }) => {
                 assert_eq!(scope, "user");
                 assert_eq!(limits.limit, 42);
