@@ -233,12 +233,7 @@ impl Response {
                 }
                 Err(_e) => {
                     // Decoding failed, we still want an AxiomError
-                    Error::Axiom(Axiom::new(
-                        status.as_u16(),
-                        self.method,
-                        self.path,
-                        None,
-                    ))
+                    Error::Axiom(Axiom::new(status.as_u16(), self.method, self.path, None))
                 }
             };
             return Err(e);
