@@ -7,13 +7,13 @@ use std::{env, time::Duration};
 use url::Url;
 
 use crate::{
-    error::{AxiomError, Error, Result},
+    error::{Axiom, Error, Result},
     limits::Limit,
 };
 
 static USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
 
-/// Client is a wrapper around reqwest::Client which provides automatically
+/// Client is a wrapper around `reqwest::Client` which provides automatically
 /// prepending the base url.
 #[derive(Debug, Clone)]
 pub(crate) struct Client {
@@ -40,7 +40,7 @@ impl Client {
         let token = token.into();
 
         let mut default_headers = header::HeaderMap::new();
-        let token_header_value = header::HeaderValue::from_str(&format!("Bearer {}", token))
+        let token_header_value = header::HeaderValue::from_str(&format!("Bearer {token}"))
             .map_err(|_e| Error::InvalidToken)?;
         default_headers.insert(header::AUTHORIZATION, token_header_value);
         if let Some(org_id) = org_id.into() {
@@ -224,7 +224,7 @@ impl Response {
             }
 
             // Try to decode the error
-            let e = match self.inner.json::<AxiomError>().await {
+            let e = match self.inner.json::<Axiom>().await {
                 Ok(mut e) => {
                     e.status = status.as_u16();
                     e.method = self.method;
@@ -233,7 +233,7 @@ impl Response {
                 }
                 Err(_e) => {
                     // Decoding failed, we still want an AxiomError
-                    Error::Axiom(AxiomError::new(
+                    Error::Axiom(Axiom::new(
                         status.as_u16(),
                         self.method,
                         self.path,

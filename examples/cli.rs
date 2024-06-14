@@ -26,8 +26,8 @@ enum Datasets {
     List,
     /// Get a dataset
     Get { name: String },
-    /// Get information for a dataset
-    Info { name: String },
+    // /// Get information for a dataset
+    // Info { name: String },
     /// Update the description of a dataset
     Update {
         name: String,
@@ -73,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("{:?}", dataset);
                 }),
             Datasets::Get { name } => println!("{:?}", client.datasets().get(&name).await?),
-            Datasets::Info { name } => println!("{:?}", client.datasets().info(&name).await?),
+            // Datasets::Info { name } => println!("{:?}", client.datasets().info(&name).await?),
             Datasets::Update { name, description } => {
                 let dataset = client.datasets().update(&name, description).await?;
                 println!("{:?}", dataset);

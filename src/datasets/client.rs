@@ -1,3 +1,11 @@
+#[allow(deprecated)]
+use crate::{
+    datasets::model::{
+        Dataset, DatasetCreateRequest, DatasetUpdateRequest, Info, TrimRequest, TrimResult,
+    },
+    error::{Error, Result},
+    http,
+};
 use std::{
     convert::{TryFrom, TryInto},
     fmt::Debug as FmtDebug,
@@ -5,12 +13,6 @@ use std::{
     time::Duration as StdDuration,
 };
 use tracing::instrument;
-
-use crate::{
-    datasets::model::*,
-    error::{Error, Result},
-    http,
-};
 
 /// Provides methods to work with Axiom datasets, including ingesting and
 /// querying.

@@ -2,7 +2,6 @@
 
 use serde::Deserialize;
 use std::fmt;
-use thiserror::Error;
 
 use crate::limits::Limits;
 
@@ -10,7 +9,7 @@ use crate::limits::Limits;
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// The error type for the Axiom client.
-#[derive(Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
 pub enum Error {
     #[error("Missing token")]
@@ -36,7 +35,7 @@ pub enum Error {
     Http(reqwest::Error),
     #[error(transparent)]
     /// Axion API error.
-    Axiom(AxiomError),
+    Axiom(Axiom),
     #[error("Query ID contains invisible characters (this is a server error)")]
     /// Query ID contains invisible characters (this is a server error).
     InvalidQueryId,
@@ -50,7 +49,7 @@ pub enum Error {
     /// Failed to encode payload.
     Encoding(std::io::Error),
     #[error("Duration is out of range (can't be larger than i64::MAX milliseconds)")]
-    /// Duration is out of range (can't be larger than i64::MAX milliseconds).
+    /// Duration is out of range (can't be larger than `i64::MAX` milliseconds).
     DurationOutOfRange,
     #[cfg(feature = "tokio")]
     #[error("Failed to join thread: {0}")]
@@ -85,12 +84,12 @@ pub enum Error {
 }
 
 /// This is the manual implementation. We don't really care if the error is
-/// permanent or transient at this stage so we just return Error::Http.
+/// permanent or transient at this stage so we just return `Error::Http`.
 impl From<backoff::Error<reqwest::Error>> for Error {
     fn from(err: backoff::Error<reqwest::Error>) -> Self {
         match err {
-            backoff::Error::Permanent(err) => Error::Http(err),
-            backoff::Error::Transient {
+            backoff::Error::Permanent(err)
+            | backoff::Error::Transient {
                 err,
                 retry_after: _,
             } => Error::Http(err),
@@ -100,7 +99,7 @@ impl From<backoff::Error<reqwest::Error>> for Error {
 
 /// An error returned by the Axiom API.
 #[derive(Deserialize, Debug)]
-pub struct AxiomError {
+pub struct Axiom {
     #[serde(skip)]
     /// The HTTP status code.
     pub status: u16,
@@ -114,7 +113,7 @@ pub struct AxiomError {
     pub message: Option<String>,
 }
 
-impl AxiomError {
+impl Axiom {
     pub(crate) fn new(
         status: u16,
         method: http::Method,
@@ -130,9 +129,9 @@ impl AxiomError {
     }
 }
 
-impl std::error::Error for AxiomError {}
+impl std::error::Error for Axiom {}
 
-impl fmt::Display for AxiomError {
+impl fmt::Display for Axiom {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(msg) = self.message.as_ref() {
             write!(

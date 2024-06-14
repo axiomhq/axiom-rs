@@ -1,4 +1,4 @@
-use crate::{error::Result, http, users::model::*};
+use crate::{error::Result, http, users::model::User};
 use tracing::instrument;
 
 /// Provides methods to work with Axiom datasets.

@@ -37,6 +37,7 @@ pub enum ContentType {
 
 impl ContentType {
     /// Returns the content type as a string.
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             ContentType::Json => "application/json",
@@ -85,6 +86,7 @@ pub enum ContentEncoding {
 
 impl ContentEncoding {
     /// Returns the content encoding as a string.
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             ContentEncoding::Identity => "",
@@ -692,7 +694,7 @@ impl Default for Filter {
     fn default() -> Self {
         Filter {
             op: FilterOp::Equal,
-            field: "".to_string(),
+            field: String::new(),
             value: JsonValue::Null,
             case_insensitive: false,
             children: vec![],
@@ -709,7 +711,7 @@ pub struct Order {
     pub desc: bool,
 }
 
-/// A VirtualField is not part of a dataset and its value is derived from an
+/// A `VirtualField` is not part of a dataset and its value is derived from an
 /// expression. Aggregations, filters and orders can reference this field like
 /// any other field.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -790,7 +792,7 @@ pub struct QueryStatus {
     pub num_groups: u32,
     /// True if the query result is a partial result.
     pub is_partial: bool,
-    /// Populated when IsPartial is true, must be passed to the next query
+    /// Populated when `IsPartial` is true, must be passed to the next query
     /// request to retrieve the next result set.
     pub continuation_token: Option<String>,
     /// True if the query result is estimated.
@@ -876,7 +878,7 @@ pub enum QueryMessageCode {
 /// An event that matched a query and is thus part of the result set.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Entry {
-    /// The time the event occurred. Matches SysTime if not specified during
+    /// The time the event occurred. Matches `SysTime` if not specified during
     /// ingestion.
     #[serde(rename = "_time")]
     pub time: DateTime<Utc>,
@@ -942,9 +944,12 @@ mod test {
     fn test_aggregation_op() {
         let enum_repr = AggregationOp::Count;
         let json_repr = r#""count""#;
-        assert_eq!(serde_json::to_string(&enum_repr).unwrap(), json_repr);
         assert_eq!(
-            serde_json::from_str::<AggregationOp>(json_repr).unwrap(),
+            serde_json::to_string(&enum_repr).expect("json error"),
+            json_repr
+        );
+        assert_eq!(
+            serde_json::from_str::<AggregationOp>(json_repr).expect("json error"),
             enum_repr
         );
     }
@@ -953,17 +958,23 @@ mod test {
     fn test_filter_op() {
         let enum_repr = FilterOp::And;
         let json_repr = r#""and""#;
-        assert_eq!(serde_json::to_string(&enum_repr).unwrap(), json_repr);
         assert_eq!(
-            serde_json::from_str::<FilterOp>(json_repr).unwrap(),
+            serde_json::to_string(&enum_repr).expect("json error"),
+            json_repr
+        );
+        assert_eq!(
+            serde_json::from_str::<FilterOp>(json_repr).expect("json error"),
             enum_repr
         );
 
         let enum_repr = FilterOp::Equal;
         let json_repr = r#""==""#;
-        assert_eq!(serde_json::to_string(&enum_repr).unwrap(), json_repr);
         assert_eq!(
-            serde_json::from_str::<FilterOp>(json_repr).unwrap(),
+            serde_json::to_string(&enum_repr).expect("json error"),
+            json_repr
+        );
+        assert_eq!(
+            serde_json::from_str::<FilterOp>(json_repr).expect("json error"),
             enum_repr
         );
     }
