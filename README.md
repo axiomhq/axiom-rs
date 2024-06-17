@@ -24,7 +24,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-axiom-rs = "0.9"
+axiom-rs = "0.10"
 ```
 
 If you use the [Axiom CLI](https://github.com/axiomhq/cli), run
