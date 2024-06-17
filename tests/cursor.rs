@@ -1,4 +1,4 @@
-use async_trait::async_trait;
+#![cfg(feature = "integration-tests")]
 use axiom_rs::{datasets::*, Client};
 use chrono::{Duration, Utc};
 use serde_json::json;
@@ -10,9 +10,8 @@ struct Context {
     dataset: Dataset,
 }
 
-#[async_trait]
 impl AsyncTestContext for Context {
-    async fn setup() -> Context {
+    async fn setup() -> Self {
         let client = Client::new().unwrap();
 
         let dataset_name = format!(
@@ -21,9 +20,13 @@ impl AsyncTestContext for Context {
         );
 
         // Delete dataset in case we have a zombie
-        client.datasets.delete(&dataset_name).await.ok();
+        client.datasets().delete(&dataset_name).await.ok();
 
-        let dataset = client.datasets.create(&dataset_name, "bar").await.unwrap();
+        let dataset = client
+            .datasets()
+            .create(&dataset_name, "bar")
+            .await
+            .unwrap();
         assert_eq!(dataset_name.clone(), dataset.name);
         assert_eq!("bar".to_string(), dataset.description);
 
@@ -31,7 +34,7 @@ impl AsyncTestContext for Context {
     }
 
     async fn teardown(self) {
-        self.client.datasets.delete(self.dataset.name).await.ok();
+        self.client.datasets().delete(self.dataset.name).await.ok();
     }
 }
 
@@ -53,7 +56,7 @@ async fn test_cursor_impl(ctx: &mut Context) {
     // Let's update the dataset.
     let dataset = ctx
         .client
-        .datasets
+        .datasets()
         .update(
             &ctx.dataset.name,
             "This is a soon to be filled test dataset",
@@ -63,14 +66,14 @@ async fn test_cursor_impl(ctx: &mut Context) {
     ctx.dataset = dataset;
 
     // Get the dataset and make sure it matches what we have updated it to.
-    let dataset = ctx.client.datasets.get(&ctx.dataset.name).await.unwrap();
+    let dataset = ctx.client.datasets().get(&ctx.dataset.name).await.unwrap();
     assert_eq!(ctx.dataset.name, dataset.name);
     assert_eq!(ctx.dataset.name, dataset.name);
     assert_eq!(ctx.dataset.description, dataset.description);
 
     // List all datasets and make sure the created dataset is part of that
     // list.
-    let datasets = ctx.client.datasets.list().await.unwrap();
+    let datasets = ctx.client.datasets().list().await.unwrap();
     datasets
         .iter()
         .find(|dataset| dataset.name == ctx.dataset.name)

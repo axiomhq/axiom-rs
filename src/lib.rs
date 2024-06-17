@@ -4,7 +4,7 @@
 //! It contains all methods you'll need to interact with the API.
 //!
 //! # Examples
-//! ```
+//! ```no_run
 //! use axiom_rs::{Client, Error};
 //! use serde_json::json;
 //!
@@ -13,7 +13,7 @@
 //!     let client = Client::new()?;
 //!
 //!     // Create a dataset called my-dataset
-//!     let dataset = client.datasets.create("my-dataset", "a description").await?;
+//!     let dataset = client.datasets().create("my-dataset", "a description").await?;
 //!
 //!     // Ingest one event
 //!     client.ingest(&dataset.name, vec![
@@ -25,17 +25,28 @@
 //!     dbg!(query_res.matches);
 //!
 //!     // Delete the dataset
-//!     client.datasets.delete(dataset.name).await?;
+//!     client.datasets().delete(dataset.name).await?;
 //!
 //!     Ok(())
 //! }
 //! ```
+
+#![deny(warnings)]
+#![deny(missing_docs)]
+#![deny(
+    clippy::all,
+    clippy::unwrap_used,
+    clippy::unnecessary_unwrap,
+    clippy::pedantic,
+    clippy::mod_module_files
+)]
 pub mod client;
 pub mod error;
 mod http;
 pub mod limits;
 mod serde;
 
+pub mod annotations;
 pub mod datasets;
 pub mod users;
 
