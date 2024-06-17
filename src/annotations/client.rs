@@ -64,7 +64,7 @@ impl<'client> Client<'client> {
     pub async fn update(
         &self,
         id: impl fmt::Display + fmt::Debug,
-        req: requests::Create,
+        req: requests::Update,
     ) -> Result<Annotation> {
         self.http_client
             .put(format!("/v2/annotations/{id}"), req)
