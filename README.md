@@ -1,14 +1,19 @@
-![axiom-rs: The official Rust bindings for the Axiom API](.github/images/banner-dark.svg#gh-dark-mode-only)
-![axiom-rs: The official Rust bindings for the Axiom API](.github/images/banner-light.svg#gh-light-mode-only)
+# axiom-rs
 
-<div align="center">
+<a href="https://axiom.co">
+<picture>
+  <source media="(prefers-color-scheme: dark) and (min-width: 600px)" srcset="https://axiom.co/assets/github/axiom-github-banner-light-vertical.svg">
+  <source media="(prefers-color-scheme: light) and (min-width: 600px)" srcset="https://axiom.co/assets/github/axiom-github-banner-dark-vertical.svg">
+  <source media="(prefers-color-scheme: dark) and (max-width: 599px)" srcset="https://axiom.co/assets/github/axiom-github-banner-light-horizontal.svg">
+  <img alt="Axiom.co banner" src="https://axiom.co/assets/github/axiom-github-banner-dark-horizontal.svg" align="right">
+</picture>
+</a>
+&nbsp;
 
 [![docs.rs](https://docs.rs/axiom-rs/badge.svg)](https://docs.rs/axiom-rs/)
 [![build](https://img.shields.io/github/actions/workflow/status/axiomhq/axiom-rs/ci.yaml?branch=main&ghcache=unused)](https://github.com/axiomhq/axiom-rs/actions?query=workflow%3ACI)
 [![crates.io](https://img.shields.io/crates/v/axiom-rs.svg)](https://crates.io/crates/axiom-rs)
 [![License](https://img.shields.io/crates/l/axiom-rs)](LICENSE-APACHE)
-
-</div>
 
 [Axiom](https://axiom.co) unlocks observability at any scale.
 
