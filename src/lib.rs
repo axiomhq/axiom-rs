@@ -44,6 +44,7 @@ pub mod client;
 pub mod error;
 mod http;
 pub mod limits;
+pub mod query_builder;
 mod serde;
 
 pub mod annotations;
