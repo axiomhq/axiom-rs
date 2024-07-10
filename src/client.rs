@@ -16,6 +16,7 @@ use tokio_stream::StreamExt;
 use tracing::instrument;
 
 use crate::{
+    annotations,
     datasets::{
         self, ContentEncoding, ContentType, IngestStatus, LegacyQuery, LegacyQueryOptions,
         LegacyQueryResult, Query, QueryOptions, QueryParams, QueryResult,
@@ -33,7 +34,7 @@ static API_URL: &str = "https://api.axiom.co";
 /// You can create it using [`Client::builder`] or [`Client::new`].
 ///
 /// # Examples
-/// ```
+/// ```no_run
 /// use axiom_rs::{Client, Error};
 ///
 /// fn main() -> Result<(), Error> {
@@ -54,32 +55,53 @@ static API_URL: &str = "https://api.axiom.co";
 #[derive(Debug, Clone)]
 pub struct Client {
     http_client: http::Client,
-
     url: String,
-    pub datasets: datasets::Client,
-    pub users: users::Client,
 }
 
 impl Client {
     /// Creates a new client. If you want to configure it, use [`Client::builder`].
+    ///     
+    /// # Errors
+    /// If the client can not be created
     pub fn new() -> Result<Self> {
         Self::builder().build()
     }
 
     /// Create a new client using a builder.
+    #[must_use]
     pub fn builder() -> Builder {
         Builder::new()
     }
 
-    /// Get the API url (cloned).
+    /// Dataset API
+    #[must_use]
+    pub fn datasets(&self) -> datasets::Client {
+        datasets::Client::new(&self.http_client)
+    }
+
+    /// Users API
+    #[must_use]
+    pub fn users(&self) -> users::Client {
+        users::Client::new(&self.http_client)
+    }
+
+    /// Annotations API
+    #[must_use]
+    pub fn annotations(&self) -> annotations::Client {
+        annotations::Client::new(&self.http_client)
+    }
+
+    /// Get the API url
     #[doc(hidden)]
-    pub fn url(&self) -> String {
-        self.url.clone()
+    #[must_use]
+    pub fn url(&self) -> &str {
+        &self.url
     }
 
     /// Get client version.
-    pub async fn version(&self) -> String {
-        env!("CARGO_PKG_VERSION").to_string()
+    #[must_use]
+    pub fn version(&self) -> &str {
+        env!("CARGO_PKG_VERSION")
     }
 
     /// Executes the given query specified using the Axiom Processing Language (APL).
@@ -118,7 +140,7 @@ impl Client {
         };
 
         let query_params = serde_qs::to_string(&query_params)?;
-        let path = format!("/v1/datasets/_apl?{}", query_params);
+        let path = format!("/v1/datasets/_apl?{query_params}");
         let res = self.http_client.post(path, &req).await?;
 
         let saved_query_id = res
@@ -127,7 +149,7 @@ impl Client {
             .map(|s| s.to_str())
             .transpose()
             .map_err(|_e| Error::InvalidQueryId)?
-            .map(|s| s.to_string());
+            .map(std::string::ToString::to_string);
 
         let mut result = res.json::<QueryResult>().await?;
         result.saved_query_id = saved_query_id;
@@ -156,8 +178,7 @@ impl Client {
             dataset_name.into(),
             &opts
                 .into()
-                .map(|opts| { serde_qs::to_string(&opts) })
-                .unwrap_or_else(|| Ok(String::new()))?
+                .map_or_else(|| Ok(String::new()), |opts| { serde_qs::to_string(&opts) })?
         );
         let res = self.http_client.post(path, &query).await?;
 
@@ -167,7 +188,7 @@ impl Client {
             .map(|s| s.to_str())
             .transpose()
             .map_err(|_e| Error::InvalidQueryId)?
-            .map(|s| s.to_string());
+            .map(std::string::ToString::to_string);
         let mut result = res.json::<LegacyQueryResult>().await?;
         result.saved_query_id = saved_query_id;
 
@@ -255,7 +276,7 @@ impl Client {
         let mut ingest_status = IngestStatus::default();
         while let Some(events) = chunks.next().await {
             let new_ingest_status = self.ingest(dataset_name.clone(), events).await?;
-            ingest_status = ingest_status + new_ingest_status
+            ingest_status = ingest_status + new_ingest_status;
         }
         Ok(ingest_status)
     }
@@ -281,7 +302,7 @@ impl Client {
             match events {
                 Ok(events) => {
                     let new_ingest_status = self.ingest(dataset_name.clone(), events).await?;
-                    ingest_status = ingest_status + new_ingest_status
+                    ingest_status = ingest_status + new_ingest_status;
                 }
                 Err(e) => return Err(Error::IngestStreamError(Box::new(e))),
             }
@@ -310,6 +331,7 @@ impl Builder {
     }
 
     /// Don't fall back to environment variables.
+    #[must_use]
     pub fn no_env(mut self) -> Self {
         self.env_fallback = false;
         self
@@ -317,6 +339,7 @@ impl Builder {
 
     /// Add a token to the client. If this is not set, the token will be read
     /// from the environment variable `AXIOM_TOKEN`.
+    #[must_use]
     pub fn with_token<S: Into<String>>(mut self, token: S) -> Self {
         self.token = Some(token.into());
         self
@@ -325,6 +348,7 @@ impl Builder {
     /// Add an URL to the client. This is only meant for testing purposes, you
     /// don't need to set it.
     #[doc(hidden)]
+    #[must_use]
     pub fn with_url<S: Into<String>>(mut self, url: S) -> Self {
         self.url = Some(url.into());
         self
@@ -332,12 +356,16 @@ impl Builder {
 
     /// Add an organization ID to the client. If this is not set, the
     /// organization ID will be read from the environment variable `AXIOM_ORG_ID`.
+    #[must_use]
     pub fn with_org_id<S: Into<String>>(mut self, org_id: S) -> Self {
         self.org_id = Some(org_id.into());
         self
     }
 
     /// Build the client.
+    ///
+    /// # Errors
+    /// If the client can not be built
     pub fn build(self) -> Result<Client> {
         let env_fallback = self.env_fallback;
 
@@ -372,8 +400,6 @@ impl Builder {
         Ok(Client {
             http_client: http_client.clone(),
             url,
-            datasets: datasets::Client::new(http_client.clone()),
-            users: users::Client::new(http_client),
         })
     }
 }

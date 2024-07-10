@@ -1,3 +1,11 @@
+#[allow(deprecated)]
+use crate::{
+    datasets::model::{
+        Dataset, DatasetCreateRequest, DatasetUpdateRequest, Info, TrimRequest, TrimResult,
+    },
+    error::{Error, Result},
+    http,
+};
 use std::{
     convert::{TryFrom, TryInto},
     fmt::Debug as FmtDebug,
@@ -6,23 +14,17 @@ use std::{
 };
 use tracing::instrument;
 
-use crate::{
-    datasets::model::*,
-    error::{Error, Result},
-    http,
-};
-
 /// Provides methods to work with Axiom datasets, including ingesting and
 /// querying.
 /// If you're looking for the ingest and query methods, those are at the
 /// [top-level client](crate::Client).
 #[derive(Debug, Clone)]
-pub struct Client {
-    http_client: http::Client,
+pub struct Client<'client> {
+    http_client: &'client http::Client,
 }
 
-impl Client {
-    pub(crate) fn new(http_client: http::Client) -> Self {
+impl<'client> Client<'client> {
+    pub(crate) fn new(http_client: &'client http::Client) -> Self {
         Self { http_client }
     }
 

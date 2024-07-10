@@ -1,4 +1,4 @@
-use async_trait::async_trait;
+#![cfg(feature = "integration-tests")]
 use axiom_rs::{datasets::*, Client};
 use chrono::{Duration, Utc};
 use futures::StreamExt;
@@ -11,7 +11,6 @@ struct Context {
     dataset: Dataset,
 }
 
-#[async_trait]
 impl AsyncTestContext for Context {
     async fn setup() -> Context {
         let client = Client::new().unwrap();
@@ -22,9 +21,13 @@ impl AsyncTestContext for Context {
         );
 
         // Delete dataset in case we have a zombie
-        client.datasets.delete(&dataset_name).await.ok();
+        client.datasets().delete(&dataset_name).await.ok();
 
-        let dataset = client.datasets.create(&dataset_name, "bar").await.unwrap();
+        let dataset = client
+            .datasets()
+            .create(&dataset_name, "bar")
+            .await
+            .unwrap();
         assert_eq!(dataset_name.clone(), dataset.name);
         assert_eq!("bar".to_string(), dataset.description);
 
@@ -32,46 +35,44 @@ impl AsyncTestContext for Context {
     }
 
     async fn teardown(self) {
-        self.client.datasets.delete(self.dataset.name).await.ok();
+        self.client.datasets().delete(self.dataset.name).await.ok();
     }
 }
 
 #[cfg(feature = "tokio")]
 #[test_context(Context)]
 #[tokio::test]
-async fn test_datasets(ctx: &mut Context) {
-    test_datasets_impl(ctx).await;
+async fn test_datasets(ctx: &mut Context) -> Result<(), Box<dyn std::error::Error>> {
+    Ok(test_datasets_impl(ctx).await?)
 }
-
 #[cfg(feature = "async-std")]
 #[test_context(Context)]
 #[async_std::test]
-async fn test_datasets(ctx: &mut Context) {
-    test_datasets_impl(ctx).await;
+async fn test_datasets(ctx: &mut Context) -> Result<(), Box<dyn std::error::Error>> {
+    Ok(test_datasets_impl(ctx).await?)
 }
 
-async fn test_datasets_impl(ctx: &mut Context) {
+async fn test_datasets_impl(ctx: &mut Context) -> Result<(), Box<dyn std::error::Error>> {
     // Let's update the dataset.
     let dataset = ctx
         .client
-        .datasets
+        .datasets()
         .update(
             &ctx.dataset.name,
             "This is a soon to be filled test dataset",
         )
-        .await
-        .unwrap();
+        .await?;
     ctx.dataset = dataset;
 
     // Get the dataset and make sure it matches what we have updated it to.
-    let dataset = ctx.client.datasets.get(&ctx.dataset.name).await.unwrap();
+    let dataset = ctx.client.datasets().get(&ctx.dataset.name).await?;
     assert_eq!(ctx.dataset.name, dataset.name);
     assert_eq!(ctx.dataset.name, dataset.name);
     assert_eq!(ctx.dataset.description, dataset.description);
 
     // List all datasets and make sure the created dataset is part of that
     // list.
-    let datasets = ctx.client.datasets.list().await.unwrap();
+    let datasets = ctx.client.datasets().list().await?;
     datasets
         .iter()
         .find(|dataset| dataset.name == ctx.dataset.name)
@@ -108,8 +109,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
             ContentType::Json,
             ContentEncoding::Identity,
         )
-        .await
-        .unwrap();
+        .await?;
     assert_eq!(ingest_status.ingested, 2);
     assert_eq!(ingest_status.failed, 0);
     assert_eq!(ingest_status.failures.len(), 0);
@@ -138,29 +138,21 @@ async fn test_datasets_impl(ctx: &mut Context) {
             "agent": "Debian APT-HTTP/1.3 (0.8.16~exp12ubuntu10.21)"
         }),
     ];
-    let ingest_status = ctx.client.ingest(&ctx.dataset.name, &events).await.unwrap();
+    let ingest_status = ctx.client.ingest(&ctx.dataset.name, &events).await?;
     assert_eq!(ingest_status.ingested, 2);
     assert_eq!(ingest_status.failed, 0);
     assert_eq!(ingest_status.failures.len(), 0);
 
     // ... a small stream
     let stream = futures_util::stream::iter(events.clone());
-    let ingest_status = ctx
-        .client
-        .ingest_stream(&ctx.dataset.name, stream)
-        .await
-        .unwrap();
+    let ingest_status = ctx.client.ingest_stream(&ctx.dataset.name, stream).await?;
     assert_eq!(ingest_status.ingested, 2);
     assert_eq!(ingest_status.failed, 0);
     assert_eq!(ingest_status.failures.len(), 0);
 
     // ... and a big stream (4321 items)
     let stream = futures_util::stream::iter(events).cycle().take(4321);
-    let ingest_status = ctx
-        .client
-        .ingest_stream(&ctx.dataset.name, stream)
-        .await
-        .unwrap();
+    let ingest_status = ctx.client.ingest_stream(&ctx.dataset.name, stream).await?;
     assert_eq!(ingest_status.ingested, 4321);
     assert_eq!(ingest_status.failed, 0);
     assert_eq!(ingest_status.failures.len(), 0);
@@ -169,7 +161,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
     tokio::time::sleep(StdDuration::from_secs(15)).await;
 
     // Get the dataset info and make sure four events have been ingested.
-    let info = ctx.client.datasets.info(&ctx.dataset.name).await.unwrap();
+    let info = ctx.client.datasets().info(&ctx.dataset.name).await?;
     assert_eq!(ctx.dataset.name, info.stat.name);
     assert_eq!(4327, info.stat.num_events);
     assert!(info.fields.len() > 0);
@@ -190,8 +182,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
                 ..Default::default()
             }),
         )
-        .await
-        .unwrap();
+        .await?;
     assert!(simple_query_result.saved_query_id.is_some());
     // assert_eq!(1, simple_query_result.status.blocks_examined);
     assert_eq!(4327, simple_query_result.status.rows_examined);
@@ -208,8 +199,7 @@ async fn test_datasets_impl(ctx: &mut Context) {
                 ..Default::default()
             },
         )
-        .await
-        .unwrap();
+        .await?;
     assert!(apl_query_result.saved_query_id.is_some());
     // assert_eq!(1, apl_query_result.status.blocks_examined);
     assert_eq!(4327, apl_query_result.status.rows_examined);
@@ -264,26 +254,18 @@ async fn test_datasets_impl(ctx: &mut Context) {
                 ..Default::default()
             },
         )
-        .await
-        .unwrap();
+        .await?;
     assert_eq!(4327, query_result.status.rows_examined);
     assert_eq!(4327, query_result.status.rows_matched);
     assert!(query_result.buckets.totals.len() == 2);
-    let agg = query_result
-        .buckets
-        .totals
-        .get(0)
-        .unwrap()
-        .aggregations
-        .get(0)
-        .unwrap();
+    let agg = &query_result.buckets.totals[0].aggregations[0];
     assert_eq!("event_count", agg.alias);
     assert_eq!(2164, agg.value);
 
     // Trim the dataset down to a minimum.
     ctx.client
-        .datasets
+        .datasets()
         .trim(&ctx.dataset.name, Duration::seconds(1))
-        .await
-        .unwrap();
+        .await?;
+    Ok(())
 }

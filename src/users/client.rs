@@ -1,14 +1,14 @@
-use crate::{error::Result, http, users::model::*};
+use crate::{error::Result, http, users::model::User};
 use tracing::instrument;
 
 /// Provides methods to work with Axiom datasets.
 #[derive(Debug, Clone)]
-pub struct Client {
-    http_client: http::Client,
+pub struct Client<'client> {
+    http_client: &'client http::Client,
 }
 
-impl Client {
-    pub(crate) fn new(http_client: http::Client) -> Self {
+impl<'client> Client<'client> {
+    pub(crate) fn new(http_client: &'client http::Client) -> Self {
         Self { http_client }
     }
 
