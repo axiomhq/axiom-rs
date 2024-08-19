@@ -166,29 +166,6 @@ async fn test_datasets_impl(ctx: &mut Context) -> Result<(), Box<dyn std::error:
     assert_eq!(4327, info.stat.num_events);
     assert!(info.fields.len() > 0);
 
-    // Run a query and make sure we see some results.
-    #[allow(deprecated)]
-    let simple_query_result = ctx
-        .client
-        .query_legacy(
-            &ctx.dataset.name,
-            LegacyQuery {
-                start_time: Some(Utc::now() - Duration::minutes(1)),
-                end_time: Some(Utc::now()),
-                ..Default::default()
-            },
-            Some(LegacyQueryOptions {
-                save_as_kind: QueryKind::Analytics,
-                ..Default::default()
-            }),
-        )
-        .await?;
-    assert!(simple_query_result.saved_query_id.is_some());
-    // assert_eq!(1, simple_query_result.status.blocks_examined);
-    assert_eq!(4327, simple_query_result.status.rows_examined);
-    assert_eq!(4327, simple_query_result.status.rows_matched);
-    assert_eq!(1000, simple_query_result.matches.len());
-
     // Run another query but using APL.
     let apl_query_result = ctx
         .client
@@ -205,62 +182,6 @@ async fn test_datasets_impl(ctx: &mut Context) -> Result<(), Box<dyn std::error:
     assert_eq!(4327, apl_query_result.status.rows_examined);
     assert_eq!(4327, apl_query_result.status.rows_matched);
     assert_eq!(1000, apl_query_result.matches.len());
-
-    // Run a more complex query.
-    let query = LegacyQuery {
-        start_time: Some(Utc::now() - Duration::minutes(1)),
-        end_time: Some(Utc::now()),
-        aggregations: vec![Aggregation {
-            alias: Some("event_count".to_string()),
-            op: AggregationOp::Count,
-            field: "*".to_string(),
-            argument: None,
-        }],
-        group_by: vec!["success".to_string(), "remote_ip".to_string()],
-        filter: Some(Filter {
-            op: FilterOp::Equal,
-            field: "response".to_string(),
-            value: json!(304),
-            ..Default::default()
-        }),
-        order: vec![
-            Order {
-                field: "success".to_string(),
-                desc: true,
-            },
-            Order {
-                field: "remote_ip".to_string(),
-                desc: false,
-            },
-        ],
-        virtual_fields: vec![VirtualField {
-            alias: "success".to_string(),
-            expr: "response < 400".to_string(),
-        }],
-        projections: vec![Projection {
-            field: "remote_ip".to_string(),
-            alias: Some("ip".to_string()),
-        }],
-        ..Default::default()
-    };
-    #[allow(deprecated)]
-    let query_result = ctx
-        .client
-        .query_legacy(
-            &ctx.dataset.name,
-            query,
-            LegacyQueryOptions {
-                save_as_kind: QueryKind::Analytics,
-                ..Default::default()
-            },
-        )
-        .await?;
-    assert_eq!(4327, query_result.status.rows_examined);
-    assert_eq!(4327, query_result.status.rows_matched);
-    assert!(query_result.buckets.totals.len() == 2);
-    let agg = &query_result.buckets.totals[0].aggregations[0];
-    assert_eq!("event_count", agg.alias);
-    assert_eq!(2164, agg.value);
 
     // Trim the dataset down to a minimum.
     ctx.client
