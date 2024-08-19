@@ -267,12 +267,13 @@ impl Table {
         &self.columns
     }
 
-    pub fn rows(&self) -> usize {
-        self.columns.iter().map(Vec::len).max().unwrap_or(0)
+    /// Returns the maximum length of the first column
+    pub fn len(&self) -> usize {
+        self.columns.first().map(Vec::len).unwrap_or_default()
     }
 
     pub fn get_row(&self, row: usize) -> Option<Row> {
-        if self.rows() > row {
+        if self.len() > row {
             Some(Row { table: self, row })
         } else {
             None
@@ -301,7 +302,7 @@ impl<'table> Iterator for RowIter<'table> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let size = self.table.rows();
+        let size = self.table.len();
         (size - self.row, Some(size - self.row))
     }
 
@@ -309,15 +310,15 @@ impl<'table> Iterator for RowIter<'table> {
     where
         Self: Sized,
     {
-        self.table.rows() - self.row
+        self.table.len() - self.row
     }
 
     fn last(self) -> Option<Self::Item>
     where
         Self: Sized,
     {
-        if self.table.rows() > 0 {
-            self.table.get_row(self.table.rows() - 1)
+        if self.table.len() > 0 {
+            self.table.get_row(self.table.len() - 1)
         } else {
             None
         }
@@ -331,6 +332,19 @@ pub struct Row<'table> {
 }
 
 impl<'table> Row<'table> {
+    /// Returns the value of the row by name
+    pub fn get_field(&self, field: &str) -> Option<&JsonValue> {
+        let mut index = None;
+
+        for (i, f) in self.table.fields.iter().enumerate() {
+            if f.name() == field {
+                index = Some(i);
+                break;
+            }
+        }
+
+        self.get(index?)
+    }
     /// Returns the value of the row.
     pub fn get(&self, column: usize) -> Option<&JsonValue> {
         self.table.columns.get(column).and_then(|c| c.get(self.row))

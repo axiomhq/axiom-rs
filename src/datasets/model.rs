@@ -591,14 +591,6 @@ pub struct QueryResult {
 
     /// The tables that were queried.
     pub tables: Vec<table::Table>,
-    // /// The datasets that were queried.
-    // #[serde(default, deserialize_with = "deserialize_null_default")]
-    // pub dataset_names: Vec<String>,
-    // /// The events that matched the query.
-    // #[serde(default, deserialize_with = "deserialize_null_default")]
-    // pub matches: Vec<Entry>,
-    // /// The time series buckets.
-    // pub buckets: Timeseries,
     /// The ID of the query that generated this result when it was saved on the
     /// server. This is only set when the query was send with the `SaveKind`
     /// option specified.

@@ -1,6 +1,5 @@
 #![cfg(feature = "integration-tests")]
 use axiom_rs::{datasets::*, Client};
-use chrono::{Duration, Utc};
 use futures::StreamExt;
 use serde_json::json;
 use std::{env, time::Duration as StdDuration};
@@ -43,7 +42,7 @@ impl AsyncTestContext for Context {
 #[test_context(Context)]
 #[tokio::test]
 async fn test_datasets(ctx: &mut Context) -> Result<(), Box<dyn std::error::Error>> {
-    Ok(test_datasets_impl(ctx).await?)
+    test_datasets_impl(ctx).await
 }
 #[cfg(feature = "async-std")]
 #[test_context(Context)]
@@ -79,7 +78,7 @@ async fn test_datasets_impl(ctx: &mut Context) -> Result<(), Box<dyn std::error:
         .expect("Expected dataset to be in the list");
 
     // Let's ingest some data
-    const PAYLOAD: &'static str = r#"[
+    const PAYLOAD: &str = r#"[
 	{
 		"time": "17/May/2015:08:05:30 +0000",
 		"remote_ip": "93.180.71.1",
@@ -164,7 +163,7 @@ async fn test_datasets_impl(ctx: &mut Context) -> Result<(), Box<dyn std::error:
     let info = ctx.client.datasets().info(&ctx.dataset.name).await?;
     assert_eq!(ctx.dataset.name, info.stat.name);
     assert_eq!(4327, info.stat.num_events);
-    assert!(info.fields.len() > 0);
+    assert!(!info.fields.is_empty());
 
     // Run another query but using APL.
     let apl_query_result = ctx
@@ -181,12 +180,8 @@ async fn test_datasets_impl(ctx: &mut Context) -> Result<(), Box<dyn std::error:
     // assert_eq!(1, apl_query_result.status.blocks_examined);
     assert_eq!(4327, apl_query_result.status.rows_examined);
     assert_eq!(4327, apl_query_result.status.rows_matched);
-    assert_eq!(1000, apl_query_result.matches.len());
+    assert_eq!(2, apl_query_result.tables.len());
+    assert_eq!(1000, apl_query_result.tables[0].len());
 
-    // Trim the dataset down to a minimum.
-    ctx.client
-        .datasets()
-        .trim(&ctx.dataset.name, Duration::seconds(1))
-        .await?;
     Ok(())
 }

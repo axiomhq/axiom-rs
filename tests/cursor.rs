@@ -118,9 +118,13 @@ async fn test_cursor_impl(ctx: &mut Context) {
         .await
         .unwrap();
     assert!(apl_query_result.saved_query_id.is_some());
-    assert_eq!(1000, apl_query_result.matches.len());
+    assert_eq!(1000, apl_query_result.tables[0].len());
 
-    let mid_row_id = &apl_query_result.matches[500].row_id;
+    let table = &apl_query_result.tables[0];
+
+    let row = table.get_row(500).unwrap();
+
+    let mid_row_id = &row.get_field("row_id").unwrap();
 
     let apl_query_result = ctx
         .client
@@ -138,5 +142,6 @@ async fn test_cursor_impl(ctx: &mut Context) {
         .await
         .unwrap();
     assert!(apl_query_result.saved_query_id.is_some());
-    assert_eq!(500, apl_query_result.matches.len());
+    assert_eq!(500, apl_query_result.tables.len());
+    assert_eq!(500, apl_query_result.tables[0].len());
 }
