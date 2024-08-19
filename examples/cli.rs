@@ -87,30 +87,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let result = client.query(apl, None).await?;
                 for table in result.tables {
                     println!("{}:", table.name());
-                    let t = table
-                        .iter()
-                        .map(|row| {
-                            row.iter()
-                                .map(|f| {
-                                    f.map_or_else(
-                                        || "-".to_string(),
-                                        |v| serde_json::to_string(v).unwrap(),
-                                    )
-                                    .cell()
-                                })
-                                .collect::<Vec<_>>()
-                        })
-                        .collect::<Vec<_>>()
-                        // turn the date into a table
-                        .table()
-                        .title(
-                            table
-                                .fields()
-                                .iter()
-                                .map(|f| f.name().to_string().cell().bold(true))
-                                .collect::<Vec<_>>(),
-                        )
-                        .bold(true);
+
+                    let rows_iter = table.iter();
+                    let mut rows = Vec::with_capacity(rows_iter.size_hint().0);
+                    for row in rows_iter {
+                        let field_iter = row.iter();
+                        let mut row_vec = Vec::with_capacity(field_iter.size_hint().0);
+                        for field in field_iter {
+                            row_vec.push(field.map_or_else(
+                                || "-".to_string(),
+                                |v| serde_json::to_string(v).unwrap(),
+                            ));
+                        }
+                        rows.push(row_vec);
+                    }
+
+                    let mut fields = Vec::with_capacity(table.fields().len());
+                    for field in table.fields() {
+                        fields.push(field.name().to_string().cell().bold(true));
+                    }
+
+                    let t = rows.table().title(fields).bold(true);
 
                     let table_display = t.display().unwrap();
                     println!("{}", table_display);
