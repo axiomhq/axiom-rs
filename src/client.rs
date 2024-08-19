@@ -107,37 +107,14 @@ impl Client {
     /// Executes the given query specified using the Axiom Processing Language (APL).
     /// To learn more about APL, see the APL documentation at https://www.axiom.co/docs/apl/introduction.
     #[instrument(skip(self, opts))]
-    pub async fn query<S, O>(&self, apl: S, opts: O) -> Result<QueryResult>
+    pub async fn query<S, O>(&self, apl: &S, opts: O) -> Result<QueryResult>
     where
-        S: Into<String> + FmtDebug,
+        S: ToString + FmtDebug + ?Sized,
         O: Into<Option<QueryOptions>>,
     {
-        let (req, query_params) = match opts.into() {
-            Some(opts) => {
-                let req = Query {
-                    apl: apl.into(),
-                    start_time: opts.start_time,
-                    end_time: opts.end_time,
-                    cursor: opts.cursor,
-                    include_cursor: opts.include_cursor,
-                };
-
-                let query_params = QueryParams {
-                    no_cache: opts.no_cache,
-                    save: opts.save,
-                    format: opts.format,
-                };
-
-                (req, query_params)
-            }
-            None => (
-                Query {
-                    apl: apl.into(),
-                    ..Default::default()
-                },
-                QueryParams::default(),
-            ),
-        };
+        let opts: QueryOptions = opts.into().unwrap_or_default();
+        let query_params = QueryParams::from(&opts);
+        let req = Query::new(apl, opts);
 
         let query_params = serde_qs::to_string(&query_params)?;
         let path = format!("/v1/datasets/_apl?{query_params}");

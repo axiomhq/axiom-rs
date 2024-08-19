@@ -107,11 +107,12 @@ async fn test_cursor_impl(ctx: &mut Context) {
     let apl_query_result = ctx
         .client
         .query(
-            format!("['{}'] | sort by _time desc", ctx.dataset.name),
+            &format!("['{}'] | sort by _time desc", ctx.dataset.name),
             QueryOptions {
                 start_time: Some(start_time),
                 end_time: Some(end_time),
                 save: true,
+                include_cursor_field: true,
                 ..Default::default()
             },
         )
@@ -124,12 +125,12 @@ async fn test_cursor_impl(ctx: &mut Context) {
 
     let row = table.get_row(500).unwrap();
 
-    let mid_row_id = &row.get_field("row_id").unwrap();
+    let mid_row_id = &row.get_field("_cursor").expect("column _cursor not found");
 
     let apl_query_result = ctx
         .client
         .query(
-            format!("['{}'] | sort by _time desc", ctx.dataset.name),
+            &format!("['{}'] | sort by _time desc", ctx.dataset.name),
             QueryOptions {
                 start_time: Some(start_time),
                 end_time: Some(end_time),

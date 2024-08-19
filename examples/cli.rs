@@ -84,7 +84,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{:?}", ingest_status);
             }
             Datasets::Query { apl } => {
-                let result = client.query(apl, None).await?;
+                let result = client.query(&apl, None).await?;
                 for table in result.tables {
                     println!("{}:", table.name());
 

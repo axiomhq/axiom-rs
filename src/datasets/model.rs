@@ -260,6 +260,19 @@ pub struct Query {
     pub include_cursor: bool,
 }
 
+impl Query {
+    /// Creates a new query with the given APL and options.
+    pub fn new<S: ToString + ?Sized>(apl: &S, opts: QueryOptions) -> Self {
+        Self {
+            apl: apl.to_string(),
+            start_time: opts.start_time,
+            end_time: opts.end_time,
+            cursor: opts.cursor,
+            include_cursor: opts.include_cursor,
+        }
+    }
+}
+
 // QueryParams is the part of `QueryOptions` that is added to the request url.
 #[derive(Serialize, Debug, Default)]
 pub(crate) struct QueryParams {
@@ -268,10 +281,25 @@ pub(crate) struct QueryParams {
     #[serde(rename = "saveAsKind")]
     pub save: bool,
     pub format: AplResultFormat,
+    #[serde(rename = "includeCursorField")]
+    pub include_cursor_field: bool,
 }
 
+impl From<&QueryOptions> for QueryParams {
+    fn from(options: &QueryOptions) -> Self {
+        Self {
+            no_cache: options.no_cache,
+            save: options.save,
+            format: options.format,
+            include_cursor_field: options.include_cursor_field,
+        }
+    }
+}
+
+// This is a configuration that just happens to have many flags.
+#[allow(clippy::struct_excessive_bools)]
 /// The optional parameters to APL query methods.
-#[derive(Debug)]
+#[derive(Debug, Default, Serialize, Clone)]
 pub struct QueryOptions {
     /// The start time of the query.
     pub start_time: Option<DateTime<Utc>>,
@@ -282,7 +310,6 @@ pub struct QueryOptions {
     /// Specifies whether the event that matches the cursor should be
     /// included in the result.
     pub include_cursor: bool,
-
     /// Omits the query cache.
     pub no_cache: bool,
     /// Save the query on the server, if set to `true`. The ID of the saved query
@@ -294,20 +321,8 @@ pub struct QueryOptions {
     pub save: bool,
     /// Format specifies the format of the APL query. Defaults to Legacy.
     pub format: AplResultFormat,
-}
-
-impl Default for QueryOptions {
-    fn default() -> Self {
-        QueryOptions {
-            start_time: None,
-            end_time: None,
-            cursor: None,
-            include_cursor: false,
-            no_cache: false,
-            save: false,
-            format: AplResultFormat::Legacy,
-        }
-    }
+    /// Requests the cursor to be included in the response
+    pub include_cursor_field: bool,
 }
 
 /// The result format of an APL query.
@@ -315,8 +330,6 @@ impl Default for QueryOptions {
 #[non_exhaustive]
 #[serde(rename_all = "camelCase")]
 pub enum AplResultFormat {
-    /// Legacy result format
-    Legacy,
     /// Tabular result format
     #[default]
     Tabular,

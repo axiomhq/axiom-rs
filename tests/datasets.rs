@@ -169,7 +169,7 @@ async fn test_datasets_impl(ctx: &mut Context) -> Result<(), Box<dyn std::error:
     let apl_query_result = ctx
         .client
         .query(
-            format!("['{}']", ctx.dataset.name),
+            &format!("['{}']", ctx.dataset.name),
             QueryOptions {
                 save: true,
                 ..Default::default()
