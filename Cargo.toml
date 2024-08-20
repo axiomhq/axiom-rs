@@ -50,7 +50,7 @@ tracing-subscriber = { version = "0.3", features = ["ansi", "env-filter"] }
 cli-table = "0.4.9"
 
 [features]
-default = ["tokio", "default-tls", "integration-tests"]
+default = ["tokio", "default-tls"]
 tokio = ["backoff/tokio", "dep:tokio"]
 async-std = ["backoff/async-std", "dep:async-std"]
 default-tls = ["reqwest/default-tls"]

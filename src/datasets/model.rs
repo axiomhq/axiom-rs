@@ -258,6 +258,8 @@ pub struct Query {
     pub cursor: Option<String>,
     /// Specifies whether the event that matches the cursor should be included or not
     pub include_cursor: bool,
+    /// Requests the cursor to be included in the response
+    pub include_cursor_field: bool,
 }
 
 impl Query {
@@ -269,6 +271,7 @@ impl Query {
             end_time: opts.end_time,
             cursor: opts.cursor,
             include_cursor: opts.include_cursor,
+            include_cursor_field: opts.include_cursor_field,
         }
     }
 }
@@ -281,8 +284,6 @@ pub(crate) struct QueryParams {
     #[serde(rename = "saveAsKind")]
     pub save: bool,
     pub format: AplResultFormat,
-    #[serde(rename = "includeCursorField")]
-    pub include_cursor_field: bool,
 }
 
 impl From<&QueryOptions> for QueryParams {
@@ -291,7 +292,6 @@ impl From<&QueryOptions> for QueryParams {
             no_cache: options.no_cache,
             save: options.save,
             format: options.format,
-            include_cursor_field: options.include_cursor_field,
         }
     }
 }
