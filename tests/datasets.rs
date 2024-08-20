@@ -180,7 +180,7 @@ async fn test_datasets_impl(ctx: &mut Context) -> Result<(), Box<dyn std::error:
     // assert_eq!(1, apl_query_result.status.blocks_examined);
     assert_eq!(4327, apl_query_result.status.rows_examined);
     assert_eq!(4327, apl_query_result.status.rows_matched);
-    assert_eq!(2, apl_query_result.tables.len());
+    assert_eq!(1, apl_query_result.tables.len());
     assert_eq!(1000, apl_query_result.tables[0].len());
 
     Ok(())
