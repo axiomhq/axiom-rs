@@ -18,8 +18,8 @@ use tracing::instrument;
 use crate::{
     annotations,
     datasets::{
-        self, ContentEncoding, ContentType, IngestStatus, LegacyQuery, LegacyQueryOptions,
-        LegacyQueryResult, Query, QueryOptions, QueryParams, QueryResult,
+        self, ContentEncoding, ContentType, IngestStatus, Query, QueryOptions, QueryParams,
+        QueryResult,
     },
     error::{Error, Result},
     http::{self, HeaderMap},
@@ -107,37 +107,14 @@ impl Client {
     /// Executes the given query specified using the Axiom Processing Language (APL).
     /// To learn more about APL, see the APL documentation at https://www.axiom.co/docs/apl/introduction.
     #[instrument(skip(self, opts))]
-    pub async fn query<S, O>(&self, apl: S, opts: O) -> Result<QueryResult>
+    pub async fn query<S, O>(&self, apl: &S, opts: O) -> Result<QueryResult>
     where
-        S: Into<String> + FmtDebug,
+        S: ToString + FmtDebug + ?Sized,
         O: Into<Option<QueryOptions>>,
     {
-        let (req, query_params) = match opts.into() {
-            Some(opts) => {
-                let req = Query {
-                    apl: apl.into(),
-                    start_time: opts.start_time,
-                    end_time: opts.end_time,
-                    cursor: opts.cursor,
-                    include_cursor: opts.include_cursor,
-                };
-
-                let query_params = QueryParams {
-                    no_cache: opts.no_cache,
-                    save: opts.save,
-                    format: opts.format,
-                };
-
-                (req, query_params)
-            }
-            None => (
-                Query {
-                    apl: apl.into(),
-                    ..Default::default()
-                },
-                QueryParams::default(),
-            ),
-        };
+        let opts: QueryOptions = opts.into().unwrap_or_default();
+        let query_params = QueryParams::from(&opts);
+        let req = Query::new(apl, opts);
 
         let query_params = serde_qs::to_string(&query_params)?;
         let path = format!("/v1/datasets/_apl?{query_params}");
@@ -152,44 +129,6 @@ impl Client {
             .map(std::string::ToString::to_string);
 
         let mut result = res.json::<QueryResult>().await?;
-        result.saved_query_id = saved_query_id;
-
-        Ok(result)
-    }
-
-    /// Execute the given query on the dataset identified by its id.
-    #[instrument(skip(self, opts))]
-    #[deprecated(
-        since = "0.6.0",
-        note = "The legacy query will be removed in future versions, use `apl_query` instead"
-    )]
-    pub async fn query_legacy<N, O>(
-        &self,
-        dataset_name: N,
-        query: LegacyQuery,
-        opts: O,
-    ) -> Result<LegacyQueryResult>
-    where
-        N: Into<String> + FmtDebug,
-        O: Into<Option<LegacyQueryOptions>>,
-    {
-        let path = format!(
-            "/v1/datasets/{}/query?{}",
-            dataset_name.into(),
-            &opts
-                .into()
-                .map_or_else(|| Ok(String::new()), |opts| { serde_qs::to_string(&opts) })?
-        );
-        let res = self.http_client.post(path, &query).await?;
-
-        let saved_query_id = res
-            .headers()
-            .get("X-Axiom-History-Query-Id")
-            .map(|s| s.to_str())
-            .transpose()
-            .map_err(|_e| Error::InvalidQueryId)?
-            .map(std::string::ToString::to_string);
-        let mut result = res.json::<LegacyQueryResult>().await?;
         result.saved_query_id = saved_query_id;
 
         Ok(result)

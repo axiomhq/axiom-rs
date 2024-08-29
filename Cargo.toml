@@ -47,6 +47,7 @@ futures-util = "0.3"
 httpmock = "0.7"
 structopt = "0.3"
 tracing-subscriber = { version = "0.3", features = ["ansi", "env-filter"] }
+cli-table = "0.4.9"
 
 [features]
 default = ["tokio", "default-tls"]

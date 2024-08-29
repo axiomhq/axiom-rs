@@ -1,15 +1,11 @@
 #[allow(deprecated)]
 use crate::{
-    datasets::model::{
-        Dataset, DatasetCreateRequest, DatasetUpdateRequest, Info, TrimRequest, TrimResult,
-    },
+    datasets::model::{Dataset, DatasetCreateRequest, DatasetUpdateRequest, Info},
     error::{Error, Result},
     http,
 };
 use std::{
-    convert::{TryFrom, TryInto},
-    fmt::Debug as FmtDebug,
-    result::Result as StdResult,
+    convert::TryFrom, fmt::Debug as FmtDebug, result::Result as StdResult,
     time::Duration as StdDuration,
 };
 use tracing::instrument;
@@ -91,27 +87,6 @@ impl<'client> Client<'client> {
     #[instrument(skip(self))]
     pub async fn list(&self) -> Result<Vec<Dataset>> {
         self.http_client.get("/v1/datasets").await?.json().await
-    }
-
-    /// Trim the dataset identified by its id to a given length.
-    /// The max duration given will mark the oldest timestamp an event can have.
-    /// Older ones will be deleted from the dataset.
-    /// The duration can either be a [`std::time::Duration`] or a
-    /// [`chrono::Duration`].
-    #[instrument(skip(self))]
-    #[allow(deprecated)]
-    pub async fn trim<N, D>(&self, dataset_name: N, duration: D) -> Result<TrimResult>
-    where
-        N: Into<String> + FmtDebug,
-        D: TryInto<Duration, Error = Error> + FmtDebug,
-    {
-        let duration = duration.try_into()?;
-        let req = TrimRequest::new(duration.into());
-        self.http_client
-            .post(format!("/v1/datasets/{}/trim", dataset_name.into()), &req)
-            .await?
-            .json()
-            .await
     }
 
     /// Update a dataset.

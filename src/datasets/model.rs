@@ -1,7 +1,6 @@
-#![allow(deprecated)] // we need this to be allowed to declare depricated code
 use bitflags::bitflags;
 use bitflags_serde_shim::impl_serde_for_bitflags;
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use http::header::HeaderValue;
 use serde::{
     de::{self, Visitor},
@@ -14,8 +13,9 @@ use std::{
     ops::Add,
     str::FromStr,
 };
+use table::Field;
 
-use crate::serde::{deserialize_null_default, empty_string_as_none};
+use crate::serde::deserialize_null_default;
 
 /// The default field the server looks for a time to use as
 /// ingestion time. If not present, the server will set the ingestion time by
@@ -137,67 +137,24 @@ pub struct Dataset {
     // ignored: integrationConfigs, integrationFilters, quickQueries
 }
 
-/// A field of an Axiom dataset.
-#[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
-pub struct Field {
-    /// Name is the unique name of the field.
-    pub name: String,
-    /// Description is the description of the field.
-    pub description: String,
-    /// Type is the datatype of the field.
-    #[serde(rename = "type")]
-    pub typ: String,
-    /// Unit is the unit of the field.
-    pub unit: String,
-    /// Hidden describes if the field is hidden or not.
-    pub hidden: bool,
-}
-
 /// Details of the information stored in a dataset.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Stat {
     /// The unique name of the dataset.
     pub name: String,
-    /// The number of blocks of the dataset.
-    #[deprecated(
-        since = "0.8.0",
-        note = "This field will be removed in a future version."
-    )]
-    pub num_blocks: u64,
     /// The number of events of the dataset.
     pub num_events: u64,
     /// The number of fields of the dataset.
     pub num_fields: u32,
     /// The amount of data stored in the dataset.
     pub input_bytes: u64,
-    /// The amount of data stored in the dataset formatted in a human
-    /// readable format.
-    #[deprecated(
-        since = "0.8.0",
-        note = "This field will be removed in a future version."
-    )]
-    pub input_bytes_human: String,
     /// The amount of compressed data stored in the dataset.
     pub compressed_bytes: u64,
-    /// The amount of compressed data stored in the
-    /// dataset formatted in a human readable format.
-    #[deprecated(
-        since = "0.8.0",
-        note = "This field will be removed in a future version."
-    )]
-    pub compressed_bytes_human: String,
     /// The time of the oldest event stored in the dataset.
     pub min_time: Option<DateTime<Utc>>,
     /// The time of the newest event stored in the dataset.
     pub max_time: Option<DateTime<Utc>>,
-    /// The ID of the user who created the dataset.
-    #[serde(rename = "who")]
-    #[deprecated(
-        since = "0.8.0",
-        note = "This field will be removed in a future version."
-    )]
-    pub created_by: Option<String>,
     /// The time the dataset was created at.
     #[serde(rename = "created")]
     pub created_at: DateTime<Utc>,
@@ -212,37 +169,6 @@ pub struct Info {
     pub stat: Stat,
     /// The fields of the dataset.
     pub fields: Vec<Field>,
-}
-
-#[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct TrimRequest {
-    max_duration: String,
-}
-
-impl TrimRequest {
-    pub(crate) fn new(duration: Duration) -> Self {
-        TrimRequest {
-            max_duration: format!("{}s", duration.num_seconds()),
-        }
-    }
-}
-
-/// The result of a trim operation.
-#[deprecated(
-    since = "0.8.0",
-    note = "The trim response will be removed in a future version."
-)]
-#[derive(Deserialize, Debug)]
-pub struct TrimResult {
-    /// The amount of blocks deleted by the trim operation.
-    #[deprecated(
-        since = "0.4.0",
-        note = "This field is deprecated and will be removed in a future version."
-    )]
-    #[serde(rename = "numDeleted")]
-    #[allow(deprecated, warnings)]
-    pub blocks_deleted: u64,
 }
 
 /// Returned on event ingestion operation.
@@ -332,6 +258,22 @@ pub struct Query {
     pub cursor: Option<String>,
     /// Specifies whether the event that matches the cursor should be included or not
     pub include_cursor: bool,
+    /// Requests the cursor to be included in the response
+    pub include_cursor_field: bool,
+}
+
+impl Query {
+    /// Creates a new query with the given APL and options.
+    pub fn new<S: ToString + ?Sized>(apl: &S, opts: QueryOptions) -> Self {
+        Self {
+            apl: apl.to_string(),
+            start_time: opts.start_time,
+            end_time: opts.end_time,
+            cursor: opts.cursor,
+            include_cursor: opts.include_cursor,
+            include_cursor_field: opts.include_cursor_field,
+        }
+    }
 }
 
 // QueryParams is the part of `QueryOptions` that is added to the request url.
@@ -344,8 +286,20 @@ pub(crate) struct QueryParams {
     pub format: AplResultFormat,
 }
 
+impl From<&QueryOptions> for QueryParams {
+    fn from(options: &QueryOptions) -> Self {
+        Self {
+            no_cache: options.no_cache,
+            save: options.save,
+            format: options.format,
+        }
+    }
+}
+
+// This is a configuration that just happens to have many flags.
+#[allow(clippy::struct_excessive_bools)]
 /// The optional parameters to APL query methods.
-#[derive(Debug)]
+#[derive(Debug, Default, Serialize, Clone)]
 pub struct QueryOptions {
     /// The start time of the query.
     pub start_time: Option<DateTime<Utc>>,
@@ -356,7 +310,6 @@ pub struct QueryOptions {
     /// Specifies whether the event that matches the cursor should be
     /// included in the result.
     pub include_cursor: bool,
-
     /// Omits the query cache.
     pub no_cache: bool,
     /// Save the query on the server, if set to `true`. The ID of the saved query
@@ -368,104 +321,32 @@ pub struct QueryOptions {
     pub save: bool,
     /// Format specifies the format of the APL query. Defaults to Legacy.
     pub format: AplResultFormat,
-}
-
-impl Default for QueryOptions {
-    fn default() -> Self {
-        QueryOptions {
-            start_time: None,
-            end_time: None,
-            cursor: None,
-            include_cursor: false,
-            no_cache: false,
-            save: false,
-            format: AplResultFormat::Legacy,
-        }
-    }
+    /// Requests the cursor to be included in the response
+    pub include_cursor_field: bool,
 }
 
 /// The result format of an APL query.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Default)]
 #[non_exhaustive]
 #[serde(rename_all = "camelCase")]
 pub enum AplResultFormat {
-    /// Legacy result format
-    Legacy,
-}
-
-impl Default for AplResultFormat {
-    fn default() -> Self {
-        AplResultFormat::Legacy
-    }
+    /// Tabular result format
+    #[default]
+    Tabular,
 }
 
 /// The kind of a query.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[non_exhaustive]
 #[serde(rename_all = "camelCase")]
 pub enum QueryKind {
     /// Analytics query
+    #[default]
     Analytics,
     /// Streaming query
     Stream,
     /// APL query,   Read-only, don't use this for requests.
     Apl,
-}
-
-impl Default for QueryKind {
-    fn default() -> Self {
-        QueryKind::Analytics
-    }
-}
-
-/// A query that gets executed on a dataset.
-/// If you're looking for the APL query, check out [`Query`].
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct LegacyQuery {
-    /// Start time of the query.
-    #[serde(deserialize_with = "empty_string_as_none")]
-    pub start_time: Option<DateTime<Utc>>,
-    /// End time of the query.
-    #[serde(deserialize_with = "empty_string_as_none")]
-    pub end_time: Option<DateTime<Utc>>,
-    /// Resolution of the queries graph. Valid values are the queries time
-    /// range / 100 at maximum and / 1000 at minimum. Use zero value for
-    /// serve-side auto-detection.
-    #[serde(default)]
-    pub resolution: String, // TODO: Implement custom type to {de,}serialize to/from go string
-    /// Aggregations performed as part of the query.
-    #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub aggregations: Vec<Aggregation>,
-    /// Filter applied on the queried results.
-    pub filter: Option<Filter>,
-    /// Field names to group the query results by.
-    #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub group_by: Vec<String>,
-    /// Order rules that specify the order of the query result.
-    #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub order: Vec<Order>,
-    /// Number of results returned from the query.
-    #[serde(default)]
-    pub limit: u32,
-    /// Virtual fields that can be referenced by aggregations, filters and
-    /// orders.
-    #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub virtual_fields: Vec<VirtualField>,
-    /// Pricections for the query result.
-    #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub projections: Vec<Projection>,
-    /// The query cursor. Should be set to the cursor returned with a previous
-    /// query result, if it was parital.
-    #[serde(default)]
-    pub cursor: String,
-    /// Return the Cursor as part of the query result.
-    #[serde(default)]
-    pub include_cursor: bool,
-    /// Used to get more results of a previous query. It is not valid for starred
-    /// queries or otherwise stored queries.
-    #[serde(default)]
-    pub continuation_token: String,
 }
 
 /// A field that is projected to the query result.
@@ -617,7 +498,7 @@ pub struct Aggregation {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 #[serde(rename_all = "lowercase")]
-pub enum FilterOp {
+enum FilterOp {
     /// Logical AND
     And,
     /// Logical OR
@@ -675,7 +556,7 @@ pub enum FilterOp {
 /// A filter is applied to a query.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct Filter {
+struct Filter {
     /// The operation of the filter.
     pub op: FilterOp,
     /// The field to filter on.
@@ -702,15 +583,6 @@ impl Default for Filter {
     }
 }
 
-/// Specifies the order a queries result will be in.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-pub struct Order {
-    /// Field to order on.
-    pub field: String,
-    /// If the field is ordered desending.
-    pub desc: bool,
-}
-
 /// A `VirtualField` is not part of a dataset and its value is derived from an
 /// expression. Aggregations, filters and orders can reference this field like
 /// any other field.
@@ -722,53 +594,16 @@ pub struct VirtualField {
     pub expr: String,
 }
 
-/// The parameters for a query.
-#[derive(Serialize, Deserialize, Debug, Default)]
-pub struct LegacyQueryOptions {
-    /// Duration of the stream
-    #[serde(rename = "streaming-duration")]
-    pub streaming_duration: Option<String>, // TODO: Implement custom type to {de,}serialize to/from go string
-    /// If the query should not be cached.
-    #[serde(rename = "no-cache")]
-    pub no_cache: bool,
-    /// The kind to save the query wit.
-    #[serde(rename = "saveAsKind")]
-    pub save_as_kind: QueryKind,
-}
-
+mod table;
 /// The query result. It embeds the APL request in the result it created.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct QueryResult {
-    /// The query request.
-    pub request: LegacyQuery,
-    // NOTE: The following is copied from QueryResult. Maybe we should have a macro?
     /// The status of the query result.
     pub status: QueryStatus,
-    /// The datasets that were queried.
-    #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub dataset_names: Vec<String>,
-    /// The events that matched the query.
-    #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub matches: Vec<Entry>,
-    /// The time series buckets.
-    pub buckets: Timeseries,
-    /// The ID of the query that generated this result when it was saved on the
-    /// server. This is only set when the query was send with the `SaveKind`
-    /// option specified.
-    #[serde(skip)]
-    pub saved_query_id: Option<String>,
-}
 
-/// The legacy result of a query.
-#[derive(Serialize, Deserialize, Debug)]
-pub struct LegacyQueryResult {
-    /// The status of the query result.
-    pub status: QueryStatus,
-    /// The events that matched the query.
-    pub matches: Vec<Entry>,
-    /// The time series buckets.
-    pub buckets: Timeseries,
+    /// The tables that were queried.
+    pub tables: Vec<table::Table>,
     /// The ID of the query that generated this result when it was saved on the
     /// server. This is only set when the query was send with the `SaveKind`
     /// option specified.

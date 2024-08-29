@@ -2,7 +2,7 @@ use axiom_rs::{
     datasets::{ContentEncoding, ContentType},
     Client,
 };
-use std::time::Duration;
+use cli_table::{Cell as _, Style as _, Table as _};
 use structopt::StructOpt;
 use tokio::io::{stdin, AsyncReadExt};
 
@@ -37,13 +37,6 @@ enum Datasets {
     },
     /// Delete a dataset
     Delete { name: String },
-    /// Trim a dataset
-    Trim {
-        name: String,
-
-        #[structopt(long)]
-        seconds: u64,
-    },
     /// Ingest into a dataset from stdin.
     Ingest {
         name: String,
@@ -73,19 +66,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("{:?}", dataset);
                 }),
             Datasets::Get { name } => println!("{:?}", client.datasets().get(&name).await?),
-            // Datasets::Info { name } => println!("{:?}", client.datasets().info(&name).await?),
             Datasets::Update { name, description } => {
                 let dataset = client.datasets().update(&name, description).await?;
                 println!("{:?}", dataset);
             }
             Datasets::Delete { name } => client.datasets().delete(&name).await?,
-            Datasets::Trim { name, seconds } => println!(
-                "{:?}",
-                client
-                    .datasets()
-                    .trim(&name, Duration::from_secs(seconds))
-                    .await?
-            ),
             Datasets::Ingest {
                 name,
                 content_type,
@@ -99,8 +84,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{:?}", ingest_status);
             }
             Datasets::Query { apl } => {
-                let result = client.query(apl, None).await?;
-                println!("{:?}", result);
+                let result = client.query(&apl, None).await?;
+                for table in result.tables {
+                    println!("{}:", table.name());
+
+                    let rows_iter = table.iter();
+                    let mut rows = Vec::with_capacity(rows_iter.size_hint().0);
+                    for row in rows_iter {
+                        let field_iter = row.iter();
+                        let mut row_vec = Vec::with_capacity(field_iter.size_hint().0);
+                        for field in field_iter {
+                            row_vec.push(field.map_or_else(
+                                || "-".to_string(),
+                                |v| serde_json::to_string(v).unwrap(),
+                            ));
+                        }
+                        rows.push(row_vec);
+                    }
+
+                    let mut fields = Vec::with_capacity(table.fields().len());
+                    for field in table.fields() {
+                        fields.push(field.name().to_string().cell().bold(true));
+                    }
+
+                    let t = rows.table().title(fields).bold(true);
+
+                    let table_display = t.display().unwrap();
+                    println!("{}", table_display);
+                }
             }
         },
         Opt::Users(users) => match users {

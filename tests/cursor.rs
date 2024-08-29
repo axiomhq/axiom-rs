@@ -107,30 +107,40 @@ async fn test_cursor_impl(ctx: &mut Context) {
     let apl_query_result = ctx
         .client
         .query(
-            format!("['{}'] | sort by _time desc", ctx.dataset.name),
+            &format!("['{}'] | sort by _time desc", ctx.dataset.name),
             QueryOptions {
                 start_time: Some(start_time),
                 end_time: Some(end_time),
                 save: true,
+                include_cursor_field: true,
                 ..Default::default()
             },
         )
         .await
         .unwrap();
     assert!(apl_query_result.saved_query_id.is_some());
-    assert_eq!(1000, apl_query_result.matches.len());
+    assert_eq!(1000, apl_query_result.tables[0].len());
 
-    let mid_row_id = &apl_query_result.matches[500].row_id;
+    let table = &apl_query_result.tables[0];
 
+    let row = table.get_row(500).unwrap();
+
+    let mid_row_id = &row.get_field("_cursor").expect("column _cursor not found");
+
+    let cursor_key = if let serde_json::Value::String(mid_row_id) = mid_row_id {
+        mid_row_id.clone()
+    } else {
+        panic!("Expected _cursor to be a string");
+    };
     let apl_query_result = ctx
         .client
         .query(
-            format!("['{}'] | sort by _time desc", ctx.dataset.name),
+            &format!("['{}'] | sort by _time desc", ctx.dataset.name),
             QueryOptions {
                 start_time: Some(start_time),
                 end_time: Some(end_time),
                 include_cursor: true,
-                cursor: Some(mid_row_id.to_string()),
+                cursor: Some(cursor_key),
                 save: true,
                 ..Default::default()
             },
@@ -138,5 +148,6 @@ async fn test_cursor_impl(ctx: &mut Context) {
         .await
         .unwrap();
     assert!(apl_query_result.saved_query_id.is_some());
-    assert_eq!(500, apl_query_result.matches.len());
+    assert_eq!(1, apl_query_result.tables.len());
+    assert_eq!(500, apl_query_result.tables[0].len());
 }

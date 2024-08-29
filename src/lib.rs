@@ -22,7 +22,7 @@
 //!
 //!     // Query the dataset
 //!     let query_res = client.query(r#"['my-dataset']"#, None).await?;
-//!     dbg!(query_res.matches);
+//!     dbg!(query_res);
 //!
 //!     // Delete the dataset
 //!     client.datasets().delete(dataset.name).await?;
