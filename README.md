@@ -17,6 +17,4 @@
 
 The Axiom Rust SDK allows you to send data from a Rust app to Axiom.
 
-## Documentation
-
 For more information about how to set up and use the Axiom Rust SDK, see the [Axiom documentation](https://axiom.co/docs/guides/rust).
