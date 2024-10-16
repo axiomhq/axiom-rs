@@ -1,3 +1,7 @@
+<!---
+Keep this page in sync with https://github.com/axiomhq/docs/blob/main/guides/rust.mdx
+-->
+
 # axiom-rs
 
 <a href="https://axiom.co">
@@ -17,30 +21,42 @@
 
 [Axiom](https://axiom.co) unlocks observability at any scale.
 
-- **Ingest with ease, store without limits:** Axiom’s next-generation datastore enables ingesting petabytes of data with ultimate efficiency. Ship logs from Kubernetes, AWS, Azure, Google Cloud, DigitalOcean, Nomad, and others.
-- **Query everything, all the time:** Whether DevOps, SecOps, or EverythingOps, query all your data no matter its age. No provisioning, no moving data from cold/archive to “hot”, and no worrying about slow queries. All your data, all. the. time.
-- **Powerful dashboards, for continuous observability:** Build dashboards to collect related queries and present information that’s quick and easy to digest for you and your team. Dashboards can be kept private or shared with others, and are the perfect way to bring together data from different sources
+- **Ingest with ease, store without limits:** Axiom's next-generation datastore
+  enables ingesting petabytes of data with ultimate efficiency. Ship logs from
+  Kubernetes, AWS, Azure, Google Cloud, DigitalOcean, Nomad, and others.
+- **Query everything, all the time:** Whether DevOps, SecOps, or EverythingOps,
+  query all your data no matter its age. No provisioning, no moving data from
+  cold/archive to "hot", and no worrying about slow queries. All your data, all.
+  the. time.
+- **Powerful dashboards, for continuous observability:** Build dashboards to
+  collect related queries and present information that's quick and easy to
+  digest for you and your team. Dashboards can be kept private or shared with
+  others, and are the perfect way to bring together data from different sources.
 
-For more information check out the [official documentation](https://axiom.co/docs) and our [community Discord](https://axiom.co/discord).
+For more information check out the
+[official documentation](https://axiom.co/docs) and our
+[community Discord](https://axiom.co/discord).
 
-## Quickstart
+## Prerequisites
+
+- [Create an Axiom account](https://app.axiom.co/register).
+- [Create a dataset in Axiom](https://axiom.co/docs/reference/datasets) where you send your data.
+- [Create an API token in Axiom](https://axiom.co/docs/reference/tokens) with permissions to update the dataset you have created.
+
+## Install SDK
 
 Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-axiom-rs = "0.10"
+axiom-rs = "VERSION"
 ```
 
-If you use the [Axiom CLI](https://github.com/axiomhq/cli), run
-`eval $(axiom config export -f)` to configure your environment variables.
+Replace `VERSION` with the latest version number specified on the [GitHub Releases](https://github.com/axiomhq/axiom-rs/releases) page. For example, `0.11.0`.
 
-Otherwise, create a personal token in
-[the Axiom settings](https://cloud.axiom.co/profile) and make note of
-the organization ID from the settings page of the organization you want to
-access.
+If you use the [Axiom CLI](https://axiom.co/reference/cli), run `eval $(axiom config export -f)` to configure your environment variables. Otherwise, [create an API token](https://axiom.co/reference/tokens) and export it as `AXIOM_TOKEN`.
 
-Create and use a client like this:
+## Use client
 
 ```rust,no_run
 use axiom_rs::Client;
@@ -50,19 +66,17 @@ use serde_json::json;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Build your client by providing a personal token and an org id:
     let client = Client::builder()
-        .with_token("my-token")
-        .with_org_id("my-org")
+        .with_token("API_TOKEN")
         .build()?;
 
-    // Alternatively you autoconfigure the client from the environment variables
-    // AXIOM_TOKEN and AXIOM_ORG_ID:
+    // Alternatively, auto-configure the client from the environment variable AXIOM_TOKEN:
     let client = Client::new()?;
 
-    client.datasets().create("my-dataset", "").await?;
+    client.datasets().create("DATASET_NAME", "").await?;
 
     client
         .ingest(
-            "my-dataset",
+            "DATASET_NAME",
             vec![json!({
                 "foo": "bar",
             })],
@@ -70,35 +84,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     let res = client
-        .query(r#"['my-dataset'] | where foo == "bar" | limit 100"#, None)
+        .query(r#"['DATASET_NAME'] | where foo == "bar" | limit 100"#, None)
         .await?;
     println!("{:?}", res);
 
-    client.datasets().delete("my-dataset").await?;
+    client.datasets().delete("DATASET_NAME").await?;
     Ok(())
 }
 ```
 
-For further examples, head over to the [examples](examples) directory.
+For more examples, see the [examples folder](https://github.com/axiomhq/axiom-rs/tree/main/examples).
 
-## Optional Features
+## Optional features
 
-The following are a list of
-[Cargo features](https://doc.rust-lang.org/stable/cargo/reference/features.html#the-features-section)
-that can be enabled or disabled:
+You can use the [Cargo features](https://doc.rust-lang.org/stable/cargo/reference/features.html#the-features-section):
 
-- **`default-tls`** _(enabled by default)_: Provides TLS support to connect
-  over HTTPS.
-- **`native-tls`**: Enables TLS functionality provided by `native-tls`.
-- **`rustls-tls`**: Enables TLS functionality provided by `rustls`.
-- **`tokio`** _(enabled by default)_: Enables the usage with the `tokio` runtime.
-- **`async-std`**: Enables the usage with the `async-std` runtime.
-
-## License
-
-Licensed under either of
-
-- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
-
-at your option.
+- `default-tls`: Provides TLS support to connect over HTTPS. Enabled by default.
+- `native-tls`: Enables TLS functionality provided by `native-tls`.
+- `rustls-tls`: Enables TLS functionality provided by `rustls`.
+- `tokio`: Enables usage with the `tokio` runtime. Enabled by default.
+- `async-std`: Enables usage with the `async-std` runtime.
