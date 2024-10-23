@@ -30,6 +30,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 cargo add axiom-rs
 ```
 
+## Optional features
+
+You can use the [Cargo features](https://doc.rust-lang.org/stable/cargo/reference/features.html#the-features-section):
+
+- `default-tls`: Provides TLS support to connect over HTTPS. Enabled by default.
+- `native-tls`: Enables TLS functionality provided by `native-tls`.
+- `rustls-tls`: Enables TLS functionality provided by `rustls`.
+- `tokio`: Enables usage with the `tokio` runtime. Enabled by default.
+- `async-std`: Enables usage with the `async-std` runtime.
+
 ## Documentation
 
 Read documentation on [axiom.co/docs/guides/rust](https://axiom.co/docs/guides/rust).
