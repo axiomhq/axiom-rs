@@ -179,6 +179,7 @@ impl Client {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct Response {
     inner: reqwest::Response,
     method: http::Method,

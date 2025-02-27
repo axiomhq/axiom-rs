@@ -276,21 +276,32 @@ impl Query {
     }
 }
 
+// We need to pass a reference for serde compatibility.
+#[allow(clippy::trivially_copy_pass_by_ref)]
+fn is_false(b: &bool) -> bool {
+    !*b
+}
+
 // QueryParams is the part of `QueryOptions` that is added to the request url.
 #[derive(Serialize, Debug, Default)]
 pub(crate) struct QueryParams {
-    #[serde(rename = "nocache")]
+    #[serde(rename = "nocache", skip_serializing_if = "is_false")]
     pub no_cache: bool,
-    #[serde(rename = "saveAsKind")]
-    pub save: bool,
+    #[serde(rename = "saveAsKind", skip_serializing_if = "Option::is_none")]
+    pub save: Option<QueryKind>,
     pub format: AplResultFormat,
 }
 
 impl From<&QueryOptions> for QueryParams {
     fn from(options: &QueryOptions) -> Self {
+        let save = if options.save {
+            Some(QueryKind::Apl)
+        } else {
+            None
+        };
         Self {
             no_cache: options.no_cache,
-            save: options.save,
+            save,
             format: options.format,
         }
     }
@@ -299,7 +310,7 @@ impl From<&QueryOptions> for QueryParams {
 // This is a configuration that just happens to have many flags.
 #[allow(clippy::struct_excessive_bools)]
 /// The optional parameters to APL query methods.
-#[derive(Debug, Default, Serialize, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct QueryOptions {
     /// The start time of the query.
     pub start_time: Option<DateTime<Utc>>,
@@ -314,10 +325,6 @@ pub struct QueryOptions {
     pub no_cache: bool,
     /// Save the query on the server, if set to `true`. The ID of the saved query
     /// is returned with the query result as part of the response.
-    // NOTE: The server automatically sets the query kind to "apl" for queries
-    // going // to the "/_apl" query endpoint. This allows us to set any value
-    // for the // `saveAsKind` query param. For user experience, we use a bool
-    // here instead of forcing the user to set the value to `query.APL`.
     pub save: bool,
     /// Format specifies the format of the APL query. Defaults to Legacy.
     pub format: AplResultFormat,
@@ -435,7 +442,7 @@ impl Serialize for AggregationOp {
 
 struct AggregationOpVisitor;
 
-impl<'de> Visitor<'de> for AggregationOpVisitor {
+impl Visitor<'_> for AggregationOpVisitor {
     type Value = AggregationOp;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -811,6 +818,42 @@ mod test {
         assert_eq!(
             serde_json::from_str::<FilterOp>(json_repr).expect("json error"),
             enum_repr
+        );
+    }
+
+    #[test]
+    fn test_kind_false() {
+        let query = QueryParams {
+            no_cache: false,
+            save: None,
+            format: AplResultFormat::Tabular,
+        };
+        let json_repr = r#"{"format":"tabular"}"#;
+        assert_eq!(
+            serde_json::to_string(&query).expect("json error"),
+            json_repr
+        );
+
+        let query = QueryParams {
+            no_cache: true,
+            save: None,
+            format: AplResultFormat::Tabular,
+        };
+        let json_repr = r#"{"nocache":true,"format":"tabular"}"#;
+        assert_eq!(
+            serde_json::to_string(&query).expect("json error"),
+            json_repr
+        );
+
+        let query = QueryParams {
+            no_cache: false,
+            save: Some(QueryKind::Apl),
+            format: AplResultFormat::Tabular,
+        };
+        let json_repr = r#"{"saveAsKind":"apl","format":"tabular"}"#;
+        assert_eq!(
+            serde_json::to_string(&query).expect("json error"),
+            json_repr
         );
     }
 }
