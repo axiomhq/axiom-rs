@@ -100,7 +100,7 @@ impl Client {
 
     /// Get client version.
     #[must_use]
-    pub fn version(&self) -> &str {
+    pub fn version(&self) -> &'static str {
         env!("CARGO_PKG_VERSION")
     }
 
@@ -286,7 +286,6 @@ impl Builder {
 
     /// Add an URL to the client. This is only meant for testing purposes, you
     /// don't need to set it.
-    #[doc(hidden)]
     #[must_use]
     pub fn with_url<S: Into<String>>(mut self, url: S) -> Self {
         self.url = Some(url.into());

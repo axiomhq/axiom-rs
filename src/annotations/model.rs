@@ -5,7 +5,6 @@ use url::Url;
 /// An annotation.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-
 pub struct Annotation {
     /// Unique ID of the annotation
     pub id: String,
