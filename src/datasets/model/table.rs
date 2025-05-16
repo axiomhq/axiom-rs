@@ -17,61 +17,38 @@ pub struct Order {
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq, Eq)]
 #[serde(transparent)]
 pub struct FieldType {
-    name: String,
-}
-
-impl FieldType {
-    /// Returns the name of the field type.
-    #[must_use]
-    pub fn name(&self) -> &str {
-        &self.name
-    }
+    /// The name of the field type.
+    pub name: String,
 }
 
 impl Display for FieldType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.name())
+        write!(f, "{}", self.name)
     }
 }
 
 impl AsRef<str> for FieldType {
     fn as_ref(&self) -> &str {
-        self.name()
+        &self.name
     }
 }
 
 /// An aggregation.
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct Agg {
-    // Name of the aggregation
-    name: String,
-    // Fields that the aggregation is applied to
+    /// Name of the aggregation
+    pub name: String,
+    /// Fields that the aggregation is applied to
     #[serde(default)]
-    fields: Vec<String>,
-    // Arguments to the aggregation
+    pub fields: Vec<String>,
+    /// Arguments to the aggregation
     #[serde(default)]
-    args: Vec<JsonValue>,
+    pub args: Vec<JsonValue>,
 }
-impl Agg {
-    /// Returns the name of the aggregation.
-    #[must_use]
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-    /// Returns the fields of the aggregation.
-    #[must_use]
-    pub fn fields(&self) -> &[String] {
-        &self.fields
-    }
-    /// Returns the arguments of the aggregation.
-    #[must_use]
-    pub fn args(&self) -> &[JsonValue] {
-        &self.args
-    }
-}
+
 impl Display for Agg {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}({})", self.name(), self.fields().join(", "))
+        write!(f, "{}({})", self.name, self.fields.join(", "))
     }
 }
 
@@ -79,35 +56,17 @@ impl Display for Agg {
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct Field {
     /// Name is the unique name of the field.
-    name: String,
+    pub name: String,
     /// Type is the datatype of the field.
     #[serde(rename = "type")]
-    typ: FieldType,
+    pub typ: FieldType,
     /// Aggregation details if field is an aggregate
-    agg: Option<Agg>,
-}
-
-impl Field {
-    /// Returns the name of the field.
-    #[must_use]
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-    /// Returns the type of the field.
-    #[must_use]
-    pub fn typ(&self) -> &FieldType {
-        &self.typ
-    }
-    /// Returns the aggregation of the field.
-    #[must_use]
-    pub fn agg(&self) -> Option<&Agg> {
-        self.agg.as_ref()
-    }
+    pub agg: Option<Agg>,
 }
 
 impl Display for Field {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: {}", self.name(), self.typ())
+        write!(f, "{}: {}", self.name, self.typ)
     }
 }
 
@@ -115,19 +74,13 @@ impl Display for Field {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Source {
-    name: String,
+    /// The name of the source.
+    pub name: String,
 }
 
-impl Source {
-    /// Returns the name of the source.
-    #[must_use]
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-}
 impl Display for Source {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.name())
+        write!(f, "{}", self.name)
     }
 }
 
@@ -135,20 +88,13 @@ impl Display for Source {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Group {
-    name: String,
-}
-
-impl Group {
-    /// Returns the name of the group.
-    #[must_use]
-    pub fn name(&self) -> &str {
-        &self.name
-    }
+    /// The name of the group.
+    pub name: String,
 }
 
 impl Display for Group {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.name())
+        write!(f, "{}", self.name)
     }
 }
 
@@ -156,32 +102,17 @@ impl Display for Group {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Range {
-    field: String,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-}
-
-impl Range {
-    /// Returns the field of the range.
-    #[must_use]
-    pub fn field(&self) -> &str {
-        &self.field
-    }
-    /// Returns the start of the range.
-    #[must_use]
-    pub fn start(&self) -> DateTime<Utc> {
-        self.start
-    }
-    /// Returns the end of the range.
-    #[must_use]
-    pub fn end(&self) -> DateTime<Utc> {
-        self.end
-    }
+    /// The field that is ranged over.
+    pub field: String,
+    /// Start time.
+    pub start: DateTime<Utc>,
+    /// End time.
+    pub end: DateTime<Utc>,
 }
 
 impl Display for Range {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}[{}..{}]", self.field(), self.start(), self.end())
+        write!(f, "{}[{}..{}]", self.field, self.start, self.end)
     }
 }
 
@@ -189,26 +120,15 @@ impl Display for Range {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Bucket {
-    field: String,
-    size: u64,
-}
-
-impl Bucket {
-    /// Returns the field of the bucket.
-    #[must_use]
-    pub fn field(&self) -> &str {
-        &self.field
-    }
-    /// Returns the size of the bucket.
-    #[must_use]
-    pub fn size(&self) -> u64 {
-        self.size
-    }
+    /// The field that is bucketed.
+    pub field: String,
+    /// The size of the bucket.
+    pub size: u64,
 }
 
 impl Display for Bucket {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}[{}]", self.field(), self.size())
+        write!(f, "{}[{}]", self.field, self.size)
     }
 }
 
@@ -216,58 +136,25 @@ impl Display for Bucket {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Table {
-    name: String,
-    sources: Vec<Source>,
-    fields: Vec<Field>,
-    order: Vec<Order>,
-    groups: Vec<Group>,
-    range: Option<Range>,
-    buckets: Option<Bucket>,
-    columns: Vec<Vec<JsonValue>>,
+    /// The name of the table.
+    pub name: String,
+    /// The source(s) of the table.
+    pub sources: Vec<Source>,
+    /// The fields of the table.
+    pub fields: Vec<Field>,
+    /// The order of the events.
+    pub order: Vec<Order>,
+    /// The groups, if any.
+    pub groups: Vec<Group>,
+    /// The range of this table.
+    pub range: Option<Range>,
+    /// The buckets, if any.
+    pub buckets: Option<Bucket>,
+    /// The columns of this table.
+    pub columns: Vec<Vec<JsonValue>>,
 }
 
 impl Table {
-    /// Returns the name of the table.
-    #[must_use]
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-    /// Returns the sources of the table.
-    #[must_use]
-    pub fn sources(&self) -> &[Source] {
-        &self.sources
-    }
-    /// Returns the fields of the table.
-    #[must_use]
-    pub fn fields(&self) -> &[Field] {
-        &self.fields
-    }
-    /// Returns the order of the table.
-    #[must_use]
-    pub fn order(&self) -> &[Order] {
-        &self.order
-    }
-    /// Returns the groups of the table.
-    #[must_use]
-    pub fn groups(&self) -> &[Group] {
-        &self.groups
-    }
-    /// Returns the range of the table.
-    #[must_use]
-    pub fn range(&self) -> Option<&Range> {
-        self.range.as_ref()
-    }
-    /// Returns the buckets of the table.
-    #[must_use]
-    pub fn buckets(&self) -> Option<&Bucket> {
-        self.buckets.as_ref()
-    }
-    /// Returns the columns of the table.
-    #[must_use]
-    pub fn columns(&self) -> &[Vec<JsonValue>] {
-        &self.columns
-    }
-
     /// Returns true if the first column is empty.
     #[must_use]
     pub fn is_empty(&self) -> bool {
@@ -358,7 +245,7 @@ impl<'table> Row<'table> {
         let mut index = None;
 
         for (i, f) in self.table.fields.iter().enumerate() {
-            if f.name() == field {
+            if f.name == field {
                 index = Some(i);
                 break;
             }

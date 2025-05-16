@@ -86,7 +86,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Datasets::Query { apl } => {
                 let result = client.query(&apl, None).await?;
                 for table in result.tables {
-                    println!("{}:", table.name());
+                    println!("{}:", table.name);
 
                     let rows_iter = table.iter();
                     let mut rows = Vec::with_capacity(rows_iter.size_hint().0);
@@ -102,9 +102,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         rows.push(row_vec);
                     }
 
-                    let mut fields = Vec::with_capacity(table.fields().len());
-                    for field in table.fields() {
-                        fields.push(field.name().to_string().cell().bold(true));
+                    let mut fields = Vec::with_capacity(table.fields.len());
+                    for field in table.fields {
+                        fields.push(field.name.to_string().cell().bold(true));
                     }
 
                     let t = rows.table().title(fields).bold(true);
