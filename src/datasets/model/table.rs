@@ -40,6 +40,7 @@ impl AsRef<str> for FieldType {
     }
 }
 
+/// An aggregation.
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct Agg {
     // Name of the aggregation
@@ -272,6 +273,7 @@ impl Table {
         self.columns.first().map(Vec::len).unwrap_or_default()
     }
 
+    /// Returns a single row from the table.
     pub fn get_row(&self, row: usize) -> Option<Row> {
         if self.len() > row {
             Some(Row { table: self, row })
@@ -279,6 +281,8 @@ impl Table {
             None
         }
     }
+
+    /// Returns an iterator over the rows.
     pub fn iter(&self) -> RowIter {
         RowIter {
             table: self,

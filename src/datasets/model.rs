@@ -13,7 +13,8 @@ use std::{
     ops::Add,
     str::FromStr,
 };
-use table::Field;
+
+pub use table::*;
 
 use crate::serde::deserialize_null_default;
 
