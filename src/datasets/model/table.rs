@@ -268,12 +268,19 @@ impl Table {
         &self.columns
     }
 
+    /// Returns true if the first column is empty.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns the maximum length of the first column
     pub fn len(&self) -> usize {
         self.columns.first().map(Vec::len).unwrap_or_default()
     }
 
     /// Returns a single row from the table.
+    #[must_use]
     pub fn get_row(&self, row: usize) -> Option<Row> {
         if self.len() > row {
             Some(Row { table: self, row })
@@ -283,11 +290,20 @@ impl Table {
     }
 
     /// Returns an iterator over the rows.
+    #[must_use]
     pub fn iter(&self) -> RowIter {
         RowIter {
             table: self,
             row: 0,
         }
+    }
+}
+
+impl<'table> IntoIterator for &'table Table {
+    type Item = Row<'table>;
+    type IntoIter = RowIter<'table>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
@@ -321,10 +337,10 @@ impl<'table> Iterator for RowIter<'table> {
     where
         Self: Sized,
     {
-        if self.table.len() > 0 {
-            self.table.get_row(self.table.len() - 1)
-        } else {
+        if self.table.is_empty() {
             None
+        } else {
+            self.table.get_row(self.table.len() - 1)
         }
     }
 }
@@ -337,6 +353,7 @@ pub struct Row<'table> {
 
 impl<'table> Row<'table> {
     /// Returns the value of the row by name
+    #[must_use]
     pub fn get_field(&self, field: &str) -> Option<&JsonValue> {
         let mut index = None;
 
@@ -350,6 +367,7 @@ impl<'table> Row<'table> {
         self.get(index?)
     }
     /// Returns the value of the row.
+    #[must_use]
     pub fn get(&self, column: usize) -> Option<&JsonValue> {
         self.table.columns.get(column).and_then(|c| c.get(self.row))
     }
@@ -366,6 +384,14 @@ impl<'table> Row<'table> {
             row: self.row,
             index: 0,
         }
+    }
+}
+
+impl<'table> IntoIterator for &Row<'table> {
+    type Item = Option<&'table JsonValue>;
+    type IntoIter = FieldIter<'table>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 

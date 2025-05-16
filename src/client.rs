@@ -60,7 +60,7 @@ pub struct Client {
 
 impl Client {
     /// Creates a new client. If you want to configure it, use [`Client::builder`].
-    ///     
+    ///
     /// # Errors
     /// If the client can not be created
     pub fn new() -> Result<Self> {
@@ -326,7 +326,7 @@ impl Builder {
         let mut org_id = self.org_id.unwrap_or_default();
         if org_id.is_empty() && env_fallback {
             org_id = env::var("AXIOM_ORG_ID").unwrap_or_default();
-        };
+        }
 
         // On Cloud you need an Org ID for Personal Tokens.
         if url == API_URL && org_id.is_empty() && is_personal_token(&token) {
