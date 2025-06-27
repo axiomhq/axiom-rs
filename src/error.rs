@@ -123,6 +123,9 @@ pub struct Axiom {
     pub path: String,
     /// The error message.
     pub message: Option<String>,
+    /// The trace id.
+    #[serde(skip)]
+    pub trace_id: Option<String>,
 }
 
 impl Axiom {
@@ -131,12 +134,14 @@ impl Axiom {
         method: http::Method,
         path: String,
         message: Option<String>,
+        trace_id: Option<String>,
     ) -> Self {
         Self {
             status,
             method,
             path,
             message,
+            trace_id,
         }
     }
 }
@@ -145,18 +150,35 @@ impl std::error::Error for Axiom {}
 
 impl fmt::Display for Axiom {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(msg) = self.message.as_ref() {
-            write!(
-                f,
-                "Received {} on {} {}: {}",
-                self.status, self.method, self.path, msg
-            )
-        } else {
-            write!(
-                f,
-                "Received {} on {} {})",
-                self.method, self.path, self.status
-            )
+        match (self.message.as_ref(), self.trace_id.as_ref()) {
+            (Some(msg), Some(trace_id)) => {
+                write!(
+                    f,
+                    "Received {} on {} {}: {} (trace id: {})",
+                    self.status, self.method, self.path, msg, trace_id
+                )
+            }
+            (Some(msg), None) => {
+                write!(
+                    f,
+                    "Received {} on {} {}: {}",
+                    self.status, self.method, self.path, msg
+                )
+            }
+            (None, Some(trace_id)) => {
+                write!(
+                    f,
+                    "Received {} on {} {} (trace id: {})",
+                    self.status, self.method, self.path, trace_id
+                )
+            }
+            (None, None) => {
+                write!(
+                    f,
+                    "Received {} on {} {})",
+                    self.method, self.path, self.status
+                )
+            }
         }
     }
 }

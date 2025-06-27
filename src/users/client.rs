@@ -13,6 +13,10 @@ impl<'client> Client<'client> {
     }
 
     /// Retrieve the authenticated user.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP request or JSON deserializing fails.
     #[instrument(skip(self))]
     pub async fn current(&self) -> Result<User> {
         self.http_client.get("/v1/user").await?.json().await
