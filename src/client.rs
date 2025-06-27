@@ -106,6 +106,10 @@ impl Client {
 
     /// Executes the given query specified using the Axiom Processing Language (APL).
     /// To learn more about APL, see the APL documentation at https://www.axiom.co/docs/apl/introduction.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP request or JSON deserializing fails.
     #[instrument(skip(self, opts))]
     pub async fn query<S, O>(&self, apl: &S, opts: O) -> Result<QueryResult>
     where
@@ -118,9 +122,9 @@ impl Client {
 
         let query_params = serde_qs::to_string(&query_params)?;
         let path = format!("/v1/datasets/_apl?{query_params}");
-        let res = self.http_client.post(path, &req).await?;
+        let resp = self.http_client.post(path, &req).await?;
 
-        let saved_query_id = res
+        let saved_query_id = resp
             .headers()
             .get("X-Axiom-History-Query-Id")
             .map(|s| s.to_str())
@@ -128,7 +132,7 @@ impl Client {
             .map_err(|_e| Error::InvalidQueryId)?
             .map(std::string::ToString::to_string);
 
-        let mut result = res.json::<QueryResult>().await?;
+        let mut result = resp.json::<QueryResult>().await?;
         result.saved_query_id = saved_query_id;
 
         Ok(result)
@@ -137,6 +141,11 @@ impl Client {
     /// Ingest events into the dataset identified by its id.
     /// Restrictions for field names (JSON object keys) can be reviewed here:
     /// <https://www.axiom.co/docs/usage/field-restrictions>.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the events cannot be serialized or if the HTTP
+    /// request or JSON deserializing fails.
     #[instrument(skip(self, events))]
     pub async fn ingest<N, I, E>(&self, dataset_name: N, events: I) -> Result<IngestStatus>
     where
@@ -171,6 +180,10 @@ impl Client {
     /// Ingest data into the dataset identified by its id.
     /// Restrictions for field names (JSON object keys) can be reviewed here:
     /// <https://www.axiom.co/docs/usage/field-restrictions>.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP request or JSON deserializing fails.
     #[instrument(skip(self, payload))]
     pub async fn ingest_bytes<N, P>(
         &self,
@@ -203,6 +216,10 @@ impl Client {
     /// with a backoff.
     /// Restrictions for field names (JSON object keys) can be reviewed here:
     /// <https://www.axiom.co/docs/usage/field-restrictions>.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP request or JSON deserializing fails.
     #[instrument(skip(self, stream))]
     pub async fn ingest_stream<N, S, E>(&self, dataset_name: N, stream: S) -> Result<IngestStatus>
     where
@@ -221,6 +238,10 @@ impl Client {
     }
 
     /// Like [`Client::ingest_stream`], but takes a stream that contains results.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP request or JSON deserializing fails.
     #[instrument(skip(self, stream))]
     pub async fn try_ingest_stream<N, S, I, E>(
         &self,

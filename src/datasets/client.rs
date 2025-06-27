@@ -25,6 +25,10 @@ impl<'client> Client<'client> {
     }
 
     /// Create a dataset with the given name and description.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP request or JSON deserializing fails.
     #[instrument(skip(self))]
     pub async fn create<N, D>(&self, dataset_name: N, description: D) -> Result<Dataset>
     where
@@ -43,6 +47,10 @@ impl<'client> Client<'client> {
     }
 
     /// Delete the dataset with the given ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP request or JSON deserializing fails.
     #[instrument(skip(self))]
     pub async fn delete<N>(&self, dataset_name: N) -> Result<()>
     where
@@ -54,6 +62,10 @@ impl<'client> Client<'client> {
     }
 
     /// Get a dataset by its id.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP request or JSON deserializing fails.
     #[instrument(skip(self))]
     pub async fn get<N>(&self, dataset_name: N) -> Result<Dataset>
     where
@@ -67,6 +79,10 @@ impl<'client> Client<'client> {
     }
 
     /// Retrieve the information of the dataset identified by its id.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP request or JSON deserializing fails.
     #[instrument(skip(self))]
     #[deprecated(
         since = "0.8.0",
@@ -84,12 +100,20 @@ impl<'client> Client<'client> {
     }
 
     /// List all available datasets.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP request or JSON deserializing fails.
     #[instrument(skip(self))]
     pub async fn list(&self) -> Result<Vec<Dataset>> {
         self.http_client.get("/v1/datasets").await?.json().await
     }
 
     /// Update a dataset.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP request or JSON deserializing fails.
     #[instrument(skip(self))]
     pub async fn update<N, D>(&self, dataset_name: N, new_description: D) -> Result<Dataset>
     where
