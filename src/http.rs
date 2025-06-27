@@ -209,6 +209,11 @@ impl Response {
 
     pub(crate) async fn check_error(self) -> Result<Response> {
         let status = self.inner.status();
+        let trace_id = self
+            .headers()
+            .get("x-axiom-trace-id")
+            .and_then(|trace_id| trace_id.to_str().ok())
+            .map(std::string::ToString::to_string);
         if !status.is_success() {
             // Check if we hit some limits
             match self.limits {
@@ -230,11 +235,18 @@ impl Response {
                     e.status = status.as_u16();
                     e.method = self.method;
                     e.path = self.path;
+                    e.trace_id = trace_id;
                     Error::Axiom(e)
                 }
                 Err(_e) => {
                     // Decoding failed, we still want an AxiomError
-                    Error::Axiom(Axiom::new(status.as_u16(), self.method, self.path, None))
+                    Error::Axiom(Axiom::new(
+                        status.as_u16(),
+                        self.method,
+                        self.path,
+                        None,
+                        trace_id,
+                    ))
                 }
             };
             return Err(e);
