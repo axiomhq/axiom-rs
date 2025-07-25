@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .try_init()?;
 
     let dataset_name = env::var("DATASET_NAME").expect("Missing DATASET_NAME");
-    let max_item_id = reqwest::get(format!("{}/v0/maxitem.json", BASE_URL))
+    let max_item_id = reqwest::get(format!("{BASE_URL}/v0/maxitem.json"))
         .await?
         .text()
         .await?
@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let stream = stream::iter(0..max_item_id)
         .map(|id| async move {
             info!(?id, "Fetching item");
-            reqwest::get(format!("{}/v0/item/{}.json", BASE_URL, id))
+            reqwest::get(format!("{BASE_URL}/v0/item/{id}.json"))
                 .await?
                 .json::<JsonValue>()
                 .await
