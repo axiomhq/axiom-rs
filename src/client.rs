@@ -32,7 +32,8 @@ static API_URL: &str = "https://api.axiom.co";
 /// Request options that can be passed to some handlers.
 #[derive(Debug, Default)]
 pub struct RequestOptions {
-    additional_headers: HeaderMap,
+    /// Additional headers for the request.
+    pub additional_headers: HeaderMap,
 }
 
 /// The client is the entrypoint of the whole SDK.

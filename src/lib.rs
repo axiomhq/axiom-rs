@@ -50,7 +50,7 @@ pub mod annotations;
 pub mod datasets;
 pub mod users;
 
-pub use client::Client;
+pub use client::{Client, RequestOptions};
 pub use error::Error;
 
 #[doc = include_str!("../README.md")]
