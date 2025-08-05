@@ -1,7 +1,7 @@
 use backoff::{future::retry, ExponentialBackoffBuilder};
 use bytes::Bytes;
 use http::header;
-pub(crate) use http::HeaderMap;
+pub use http::HeaderMap;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{env, time::Duration};
 use url::Url;
