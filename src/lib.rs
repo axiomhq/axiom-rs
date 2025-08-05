@@ -53,6 +53,9 @@ pub mod users;
 pub use client::{Client, RequestOptions};
 pub use error::Error;
 
+// Exported for `RequestOptions`.
+pub use http::HeaderMap;
+
 #[doc = include_str!("../README.md")]
 #[cfg(doctest)]
 pub struct ReadmeDoctests;
