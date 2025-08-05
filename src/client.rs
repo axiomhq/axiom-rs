@@ -29,6 +29,12 @@ use crate::{
 /// API URL is the URL for the Axiom Cloud API.
 static API_URL: &str = "https://api.axiom.co";
 
+/// Request options that can be passed to some handlers.
+#[derive(Debug, Default)]
+pub struct RequestOptions {
+    additional_headers: HeaderMap,
+}
+
 /// The client is the entrypoint of the whole SDK.
 ///
 /// You can create it using [`Client::builder`] or [`Client::new`].
@@ -196,7 +202,47 @@ impl Client {
         N: Into<String> + FmtDebug,
         P: Into<Bytes>,
     {
+        self.ingest_bytes_opt(
+            dataset_name,
+            payload,
+            content_type,
+            content_encoding,
+            RequestOptions::default(),
+        )
+        .await
+    }
+
+    /// Like `ingest_bytes`, but takes a `RequestOptions`, which allows you to
+    /// customize your request further.
+    /// Note that any content-type and content-type headers in `RequestOptions`
+    /// will be overwritten by the given arguments.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP request or JSON deserializing fails.
+    #[instrument(skip(self, payload))]
+    pub async fn ingest_bytes_opt<N, P>(
+        &self,
+        dataset_name: N,
+        payload: P,
+        content_type: ContentType,
+        content_encoding: ContentEncoding,
+        request_options: RequestOptions,
+    ) -> Result<IngestStatus>
+    where
+        N: Into<String> + FmtDebug,
+        P: Into<Bytes>,
+    {
         let mut headers = HeaderMap::new();
+
+        // Add headers from request options
+        for (key, value) in request_options.additional_headers {
+            if let Some(key) = key {
+                headers.insert(key, value);
+            }
+        }
+
+        // Add content-type, content-encoding
         headers.insert(header::CONTENT_TYPE, content_type.into());
         headers.insert(header::CONTENT_ENCODING, content_encoding.into());
 
