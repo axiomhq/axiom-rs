@@ -26,9 +26,10 @@ cargo run
 
 ### Usage
 
-```
-$ cd examples/cli && cargo run
-cli 0.1.0
+```bash
+# Run this from the project root
+$ cargo run --example cli
+axiom-rs 0.11.2
 
 USAGE:
     cli <SUBCOMMAND>
@@ -56,4 +57,11 @@ This example ingests all HN posts into an Axiom dataset.
 export DATASET_NAME=<your dataset name>
 export AXIOM_TOKEN=<your api token>
 cargo run
+```
+
+### Usage
+
+```bash
+# Run this from the project root
+$ cargo run --example ingest-hn
 ```
