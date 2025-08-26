@@ -617,7 +617,7 @@ pub struct QueryResult {
     /// option specified.
     #[serde(skip)]
     pub saved_query_id: Option<String>,
-    /// OTel-Trace-ID of the query executuion. Used for error reporting and debugging.
+    /// OTel-Trace-ID of the query execution. Used for error reporting and debugging.
     #[serde(skip)]
     pub trace_id: Option<String>,
 }
