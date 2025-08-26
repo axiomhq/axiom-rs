@@ -56,12 +56,5 @@ This example ingests all HN posts into an Axiom dataset.
 ```sh
 export DATASET_NAME=<your dataset name>
 export AXIOM_TOKEN=<your api token>
-cargo run
-```
-
-### Usage
-
-```bash
-# Run this from the project root
-$ cargo run --example ingest-hn
+cargo run --example ingest-hn
 ```
