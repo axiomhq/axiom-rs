@@ -138,10 +138,18 @@ impl Client {
             .map(|s| s.to_str())
             .transpose()
             .map_err(|_e| Error::InvalidQueryId)?
-            .map(std::string::ToString::to_string);
+            .map(ToString::to_string);
 
+        let trace_id = resp
+            .headers()
+            .get("x-axiom-trace-id")
+            .map(|s| s.to_str())
+            .transpose()
+            .map_err(|_e| Error::InvalidTraceId)?
+            .map(ToString::to_string);
         let mut result = resp.json::<QueryResult>().await?;
         result.saved_query_id = saved_query_id;
+        result.trace_id = trace_id;
 
         Ok(result)
     }

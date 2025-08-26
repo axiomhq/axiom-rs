@@ -51,6 +51,9 @@ pub enum Error {
     #[error("Query ID contains invisible characters (this is a server error)")]
     /// Query ID contains invisible characters (this is a server error).
     InvalidQueryId,
+    #[error("Trace ID contains invisible characters (this is a server error)")]
+    /// Query ID contains invisible characters (this is a server error).
+    InvalidTraceId,
     #[error(transparent)]
     /// Invalid Query Parameters.
     InvalidParams(#[from] serde_qs::Error),

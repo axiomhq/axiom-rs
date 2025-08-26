@@ -63,12 +63,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .await?
                 .into_iter()
                 .for_each(|dataset| {
-                    println!("{:?}", dataset);
+                    println!("{dataset:?}");
                 }),
             Datasets::Get { name } => println!("{:?}", client.datasets().get(&name).await?),
             Datasets::Update { name, description } => {
                 let dataset = client.datasets().update(&name, description).await?;
-                println!("{:?}", dataset);
+                println!("{dataset:?}");
             }
             Datasets::Delete { name } => client.datasets().delete(&name).await?,
             Datasets::Ingest {
@@ -81,7 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let ingest_status = client
                     .ingest_bytes(&name, buf, content_type, content_encoding)
                     .await?;
-                println!("{:?}", ingest_status);
+                println!("{ingest_status:?}");
             }
             Datasets::Query { apl } => {
                 let result = client.query(&apl, None).await?;
@@ -110,14 +110,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let t = rows.table().title(fields).bold(true);
 
                     let table_display = t.display().unwrap();
-                    println!("{}", table_display);
+                    println!("{table_display}",);
                 }
             }
         },
         Opt::Users(users) => match users {
             Users::Current => {
                 let user = client.users().current().await?;
-                println!("{:?}", user);
+                println!("{user:?}");
             }
         },
     };
