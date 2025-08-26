@@ -305,7 +305,7 @@ mod test {
                 assert_eq!(limits.reset.timestamp(), tomorrow.timestamp());
             }
             res => panic!("Expected ingest limit error, got {:?}", res),
-        };
+        }
 
         rate_mock.assert_hits_async(1).await;
         Ok(())
@@ -342,7 +342,7 @@ mod test {
                 assert_eq!(limits.reset.timestamp(), tomorrow.timestamp());
             }
             res => panic!("Expected ingest limit error, got {:?}", res),
-        };
+        }
 
         rate_mock.assert_hits_async(1).await;
         Ok(())
@@ -381,7 +381,7 @@ mod test {
                 assert_eq!(limits.reset.timestamp(), tomorrow.timestamp());
             }
             res => panic!("Expected ingest limit error, got {:?}", res),
-        };
+        }
 
         rate_mock.assert_hits_async(1).await;
         Ok(())
