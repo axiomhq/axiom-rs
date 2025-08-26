@@ -281,7 +281,7 @@ impl Table {
 
     /// Returns a single row from the table.
     #[must_use]
-    pub fn get_row(&self, row: usize) -> Option<Row> {
+    pub fn get_row(&self, row: usize) -> Option<Row<'_>> {
         if self.len() > row {
             Some(Row { table: self, row })
         } else {
@@ -291,7 +291,7 @@ impl Table {
 
     /// Returns an iterator over the rows.
     #[must_use]
-    pub fn iter(&self) -> RowIter {
+    pub fn iter(&self) -> RowIter<'_> {
         RowIter {
             table: self,
             row: 0,

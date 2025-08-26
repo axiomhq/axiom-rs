@@ -82,19 +82,19 @@ impl Client {
 
     /// Dataset API
     #[must_use]
-    pub fn datasets(&self) -> datasets::Client {
+    pub fn datasets(&self) -> datasets::Client<'_> {
         datasets::Client::new(&self.http_client)
     }
 
     /// Users API
     #[must_use]
-    pub fn users(&self) -> users::Client {
+    pub fn users(&self) -> users::Client<'_> {
         users::Client::new(&self.http_client)
     }
 
     /// Annotations API
     #[must_use]
-    pub fn annotations(&self) -> annotations::Client {
+    pub fn annotations(&self) -> annotations::Client<'_> {
         annotations::Client::new(&self.http_client)
     }
 
@@ -112,7 +112,8 @@ impl Client {
     }
 
     /// Executes the given query specified using the Axiom Processing Language (APL).
-    /// To learn more about APL, see the APL documentation at https://www.axiom.co/docs/apl/introduction.
+    /// To learn more about APL, see the APL documentation at
+    /// <https://www.axiom.co/docs/apl/introduction>.
     ///
     /// # Errors
     ///
