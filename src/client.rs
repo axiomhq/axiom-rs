@@ -29,6 +29,23 @@ use crate::{
 /// API URL is the URL for the Axiom Cloud API.
 static API_URL: &str = "https://api.axiom.co";
 
+/// Determines how ingest URLs are constructed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IngestPathStyle {
+    /// Legacy path format: `/v1/datasets/{dataset}/ingest`
+    ///
+    /// Used when no edge config is set, or `edge_url` is set without a path.
+    Legacy,
+    /// Edge path format: `/v1/ingest/{dataset}`
+    ///
+    /// Used when `edge_region` is set.
+    Edge,
+    /// URL has a custom path - use as-is without appending any path.
+    ///
+    /// Used when `edge_url` contains a path component.
+    AsIs,
+}
+
 /// Request options that can be passed to some handlers.
 #[derive(Debug, Default)]
 pub struct RequestOptions {
@@ -75,8 +92,8 @@ pub struct Client {
     api_url: String,
     /// The ingest/query URL (may be edge endpoint).
     edge_url: String,
-    /// Whether the ingest URL is an edge endpoint (uses different path format).
-    uses_edge: bool,
+    /// How ingest paths should be constructed.
+    ingest_path_style: IngestPathStyle,
 }
 
 impl Client {
@@ -129,7 +146,14 @@ impl Client {
     /// Returns true if the client is configured to use an edge endpoint.
     #[must_use]
     pub fn uses_edge(&self) -> bool {
-        self.uses_edge
+        self.ingest_path_style == IngestPathStyle::Edge
+            || self.ingest_path_style == IngestPathStyle::AsIs
+    }
+
+    /// Returns the ingest path style.
+    #[must_use]
+    pub fn ingest_path_style(&self) -> IngestPathStyle {
+        self.ingest_path_style
     }
 
     /// Get client version.
@@ -285,11 +309,14 @@ impl Client {
         headers.insert(header::CONTENT_ENCODING, content_encoding.into());
 
         let dataset_name = dataset_name.into();
-        // Edge endpoints use /v1/ingest/{dataset}, legacy uses /v1/datasets/{dataset}/ingest
-        let path = if self.uses_edge {
-            format!("/v1/ingest/{dataset_name}")
-        } else {
-            format!("/v1/datasets/{dataset_name}/ingest")
+        // Determine path based on ingest style:
+        // - Legacy: /v1/datasets/{dataset}/ingest
+        // - Edge: /v1/ingest/{dataset}
+        // - AsIs: no path appended (URL already contains full path)
+        let path = match self.ingest_path_style {
+            IngestPathStyle::Legacy => format!("/v1/datasets/{dataset_name}/ingest"),
+            IngestPathStyle::Edge => format!("/v1/ingest/{dataset_name}"),
+            IngestPathStyle::AsIs => String::new(),
         };
 
         self.edge_http
@@ -483,8 +510,8 @@ impl Builder {
             return Err(Error::MissingOrgId);
         }
 
-        // Resolve ingest URL and region
-        // Priority: edge_url > region > api_url (for backwards compatibility)
+        // Resolve edge URL and region
+        // Priority: edge_url > edge_region > api_url (for backwards compatibility)
         let mut edge_url = self.edge_url.unwrap_or_default();
         if edge_url.is_empty() && env_fallback {
             edge_url = env::var("AXIOM_EDGE_URL").unwrap_or_default();
@@ -495,22 +522,34 @@ impl Builder {
             region = env::var("AXIOM_EDGE_REGION").unwrap_or_default();
         }
 
-        // Determine edge URL and whether we're using edge endpoints
-        // Priority: edge_url > edge_region > api_url (backwards compatible)
-        // Edge mode requires explicit configuration via edge_url or edge_region
-        let uses_edge =
-            !region.is_empty() || edge_url.contains(".edge.") || edge_url.contains("/v1/ingest");
+        // Determine ingest path style and final edge URL
+        // - edge_region: use Edge style (/v1/ingest/{dataset})
+        // - edge_url with path: use AsIs style (URL used as-is)
+        // - edge_url without path: use Legacy style (/v1/datasets/{dataset}/ingest)
+        // - no edge config: use Legacy style with api_url
+        let (edge_url, ingest_path_style) = if !edge_url.is_empty() {
+            // Check if URL has a custom path
+            let has_custom_path = if let Ok(parsed) = url::Url::parse(&edge_url) {
+                let path = parsed.path();
+                !path.is_empty() && path != "/"
+            } else {
+                false
+            };
 
-        let edge_url = if !edge_url.is_empty() {
-            // Explicit edge URL takes precedence
-            edge_url
+            if has_custom_path {
+                // URL has custom path - use as-is
+                (edge_url, IngestPathStyle::AsIs)
+            } else {
+                // URL without path - use legacy path format for backwards compatibility
+                (edge_url, IngestPathStyle::Legacy)
+            }
         } else if !region.is_empty() {
-            // Region specified - build edge URL
+            // Region specified - build edge URL with edge path format
             let region = region.trim_end_matches('/');
-            format!("https://{region}")
+            (format!("https://{region}"), IngestPathStyle::Edge)
         } else {
-            // No edge config - use API URL for ingest (backwards compatible)
-            api_url.clone()
+            // No edge config - use API URL with legacy path format
+            (api_url.clone(), IngestPathStyle::Legacy)
         };
 
         let org_id_opt: Option<String> = if org_id.is_empty() {
@@ -526,7 +565,7 @@ impl Builder {
             edge_http,
             api_url,
             edge_url,
-            uses_edge,
+            ingest_path_style,
         })
     }
 }

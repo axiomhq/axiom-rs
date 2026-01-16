@@ -389,12 +389,30 @@ mod test {
         Ok(())
     }
 
+    #[test]
+    fn test_edge_region_uses_edge_path_style() {
+        // Verify edge_region sets the correct path style and URL
+        let client = Client::builder()
+            .no_env()
+            .with_token("xaat-test")
+            .with_edge_region("eu-central-1.aws.edge.axiom.co")
+            .build()
+            .unwrap();
+
+        assert!(client.uses_edge());
+        assert_eq!(
+            client.ingest_path_style(),
+            crate::client::IngestPathStyle::Edge
+        );
+        assert_eq!(client.edge_url(), "https://eu-central-1.aws.edge.axiom.co");
+    }
+
     #[tokio::test]
-    async fn test_edge_ingest_uses_correct_path() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_edge_url_with_path_uses_as_is() -> Result<(), Box<dyn std::error::Error>> {
         let server = MockServer::start();
         let edge_mock = server.mock(|when, then| {
-            // Edge endpoints use /v1/ingest/{dataset}
-            when.method(POST).path("/v1/ingest/test-dataset");
+            // Custom path - used as-is
+            when.method(POST).path("/custom/ingest/path");
             then.status(200).json_body(json!({
                 "ingested": 1,
                 "failed": 0,
@@ -405,15 +423,20 @@ mod test {
             }));
         });
 
+        let edge_url_with_path = format!("{}/custom/ingest/path", server.base_url());
+
         let client = Client::builder()
             .no_env()
             .with_url(server.base_url())
-            .with_edge_region("test.edge.axiom.co") // This triggers edge mode
-            .with_edge_url(server.base_url()) // Override for test
+            .with_edge_url(&edge_url_with_path)
             .with_token("xaat-test")
             .build()?;
 
         assert!(client.uses_edge());
+        assert_eq!(
+            client.ingest_path_style(),
+            crate::client::IngestPathStyle::AsIs
+        );
 
         let result = client
             .ingest("test-dataset", vec![json!({"foo": "bar"})])
