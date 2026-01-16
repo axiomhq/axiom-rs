@@ -29,6 +29,9 @@ use crate::{
 /// API URL is the URL for the Axiom Cloud API.
 static API_URL: &str = "https://api.axiom.co";
 
+/// Default edge URL for Axiom Cloud (US East 1).
+static DEFAULT_EDGE_URL: &str = "https://us-east-1.aws.edge.axiom.co";
+
 /// Request options that can be passed to some handlers.
 #[derive(Debug, Default)]
 pub struct RequestOptions {
@@ -56,13 +59,27 @@ pub struct RequestOptions {
 ///         .with_org_id("my-org-id")
 ///         .build()?;
 ///
+///     // Use edge ingestion for a specific region.
+///     let client = Client::builder()
+///         .with_token("my-token")
+///         .with_region("eu-central-1.aws.edge.axiom.co")
+///         .build()?;
+///
 ///     Ok(())
 /// }
 /// ```
 #[derive(Debug, Clone)]
 pub struct Client {
-    http_client: http::Client,
-    url: String,
+    /// HTTP client for API operations (datasets, users, annotations).
+    api_http: http::Client,
+    /// HTTP client for ingest and query operations (may use edge endpoint).
+    ingest_http: http::Client,
+    /// The API URL.
+    api_url: String,
+    /// The ingest/query URL (may be edge endpoint).
+    ingest_url: String,
+    /// Whether the ingest URL is an edge endpoint (uses different path format).
+    uses_edge: bool,
 }
 
 impl Client {
@@ -83,26 +100,39 @@ impl Client {
     /// Dataset API
     #[must_use]
     pub fn datasets(&self) -> datasets::Client<'_> {
-        datasets::Client::new(&self.http_client)
+        datasets::Client::new(&self.api_http)
     }
 
     /// Users API
     #[must_use]
     pub fn users(&self) -> users::Client<'_> {
-        users::Client::new(&self.http_client)
+        users::Client::new(&self.api_http)
     }
 
     /// Annotations API
     #[must_use]
     pub fn annotations(&self) -> annotations::Client<'_> {
-        annotations::Client::new(&self.http_client)
+        annotations::Client::new(&self.api_http)
     }
 
     /// Get the API url
     #[doc(hidden)]
     #[must_use]
-    pub fn url(&self) -> &str {
-        &self.url
+    pub fn api_url(&self) -> &str {
+        &self.api_url
+    }
+
+    /// Get the ingest/query url
+    #[doc(hidden)]
+    #[must_use]
+    pub fn ingest_url(&self) -> &str {
+        &self.ingest_url
+    }
+
+    /// Returns true if the client is configured to use an edge endpoint.
+    #[must_use]
+    pub fn uses_edge(&self) -> bool {
+        self.uses_edge
     }
 
     /// Get client version.
@@ -130,7 +160,8 @@ impl Client {
 
         let query_params = serde_qs::to_string(&query_params)?;
         let path = format!("/v1/datasets/_apl?{query_params}");
-        let resp = self.http_client.post(path, &req).await?;
+        // Query uses ingest_http as it's supported on edge endpoints
+        let resp = self.ingest_http.post(path, &req).await?;
 
         let saved_query_id = resp
             .headers()
@@ -256,12 +287,16 @@ impl Client {
         headers.insert(header::CONTENT_TYPE, content_type.into());
         headers.insert(header::CONTENT_ENCODING, content_encoding.into());
 
-        self.http_client
-            .post_bytes(
-                format!("/v1/datasets/{}/ingest", dataset_name.into()),
-                payload,
-                headers,
-            )
+        let dataset_name = dataset_name.into();
+        // Edge endpoints use /v1/ingest/{dataset}, legacy uses /v1/datasets/{dataset}/ingest
+        let path = if self.uses_edge {
+            format!("/v1/ingest/{dataset_name}")
+        } else {
+            format!("/v1/datasets/{dataset_name}/ingest")
+        };
+
+        self.ingest_http
+            .post_bytes(path, payload, headers)
             .await?
             .json()
             .await
@@ -331,6 +366,8 @@ impl Client {
 pub struct Builder {
     env_fallback: bool,
     url: Option<String>,
+    ingest_url: Option<String>,
+    region: Option<String>,
     token: Option<String>,
     org_id: Option<String>,
 }
@@ -341,6 +378,8 @@ impl Builder {
         Self {
             env_fallback: true,
             url: None,
+            ingest_url: None,
+            region: None,
             token: None,
             org_id: None,
         }
@@ -377,6 +416,42 @@ impl Builder {
         self
     }
 
+    /// Set the Axiom regional edge domain for ingestion.
+    ///
+    /// Specify the domain name only (no scheme, no path).
+    /// When set, data is sent to `https://{region}/v1/ingest/{dataset}`.
+    ///
+    /// If this is not set, the region will be read from the environment
+    /// variable `AXIOM_REGION`.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use axiom_rs::Client;
+    ///
+    /// let client = Client::builder()
+    ///     .with_token("my-token")
+    ///     .with_region("eu-central-1.aws.edge.axiom.co")
+    ///     .build();
+    /// ```
+    #[must_use]
+    pub fn with_region<S: Into<String>>(mut self, region: S) -> Self {
+        self.region = Some(region.into());
+        self
+    }
+
+    /// Set an explicit ingest URL for the client.
+    ///
+    /// This takes precedence over `with_region`. Use this when you need
+    /// full control over the ingest endpoint URL.
+    ///
+    /// If this is not set, the ingest URL will be read from the environment
+    /// variable `AXIOM_INGEST_URL`.
+    #[must_use]
+    pub fn with_ingest_url<S: Into<String>>(mut self, ingest_url: S) -> Self {
+        self.ingest_url = Some(ingest_url.into());
+        self
+    }
+
     /// Build the client.
     ///
     /// # Errors
@@ -392,12 +467,13 @@ impl Builder {
             return Err(Error::MissingToken);
         }
 
-        let mut url = self.url.unwrap_or_default();
-        if url.is_empty() && env_fallback {
-            url = env::var("AXIOM_URL").unwrap_or_default();
+        // Resolve API URL
+        let mut api_url = self.url.unwrap_or_default();
+        if api_url.is_empty() && env_fallback {
+            api_url = env::var("AXIOM_URL").unwrap_or_default();
         }
-        if url.is_empty() {
-            url = API_URL.to_string();
+        if api_url.is_empty() {
+            api_url = API_URL.to_string();
         }
 
         let mut org_id = self.org_id.unwrap_or_default();
@@ -406,15 +482,59 @@ impl Builder {
         }
 
         // On Cloud you need an Org ID for Personal Tokens.
-        if url == API_URL && org_id.is_empty() && is_personal_token(&token) {
+        if api_url == API_URL && org_id.is_empty() && is_personal_token(&token) {
             return Err(Error::MissingOrgId);
         }
 
-        let http_client = http::Client::new(url.clone(), token, org_id)?;
+        // Resolve ingest URL and region
+        // Priority: ingest_url > region > api_url (for backwards compatibility)
+        let mut ingest_url = self.ingest_url.unwrap_or_default();
+        if ingest_url.is_empty() && env_fallback {
+            ingest_url = env::var("AXIOM_INGEST_URL").unwrap_or_default();
+        }
+
+        let mut region = self.region.unwrap_or_default();
+        if region.is_empty() && env_fallback {
+            region = env::var("AXIOM_REGION").unwrap_or_default();
+        }
+
+        // Determine ingest URL and whether we're using edge endpoints
+        // Priority: ingest_url > region > default
+        // Edge mode is determined by: region being set OR ingest_url looking like an edge URL
+        let uses_edge = !region.is_empty()
+            || ingest_url.contains(".edge.")
+            || ingest_url.contains("/v1/ingest")
+            || (ingest_url.is_empty() && api_url == API_URL);
+
+        let ingest_url = if !ingest_url.is_empty() {
+            // Explicit ingest URL takes precedence
+            ingest_url
+        } else if !region.is_empty() {
+            // Region specified - build edge URL
+            let region = region.trim_end_matches('/');
+            format!("https://{region}")
+        } else if api_url == API_URL {
+            // Default cloud: use default edge endpoint for ingest
+            DEFAULT_EDGE_URL.to_string()
+        } else {
+            // Custom API URL without region - use same URL for ingest (backwards compatible)
+            api_url.clone()
+        };
+
+        let org_id_opt: Option<String> = if org_id.is_empty() {
+            None
+        } else {
+            Some(org_id)
+        };
+        let api_http = http::Client::new(api_url.clone(), token.clone(), org_id_opt.clone())?;
+        let ingest_http = http::Client::new(ingest_url.clone(), token, org_id_opt)?;
 
         Ok(Client {
-            http_client: http_client.clone(),
-            url,
+            api_http,
+            ingest_http,
+            api_url,
+            ingest_url,
+            uses_edge,
         })
     }
 }

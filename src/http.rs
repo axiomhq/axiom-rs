@@ -295,6 +295,7 @@ mod test {
         let client = Client::builder()
             .no_env()
             .with_url(server.base_url())
+            .with_ingest_url(server.base_url())
             .with_token("xapt-nope")
             .build()?;
 
@@ -332,6 +333,7 @@ mod test {
         let client = Client::builder()
             .no_env()
             .with_url(server.base_url())
+            .with_ingest_url(server.base_url())
             .with_token("xapt-nope")
             .build()?;
 
@@ -385,5 +387,135 @@ mod test {
 
         rate_mock.assert_hits_async(1).await;
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_edge_ingest_uses_correct_path() -> Result<(), Box<dyn std::error::Error>> {
+        let server = MockServer::start();
+        let edge_mock = server.mock(|when, then| {
+            // Edge endpoints use /v1/ingest/{dataset}
+            when.method(POST).path("/v1/ingest/test-dataset");
+            then.status(200).json_body(json!({
+                "ingested": 1,
+                "failed": 0,
+                "failures": [],
+                "processedBytes": 100,
+                "blocksCreated": 0,
+                "walLength": 0
+            }));
+        });
+
+        let client = Client::builder()
+            .no_env()
+            .with_url(server.base_url())
+            .with_region("test.edge.axiom.co") // This triggers edge mode
+            .with_ingest_url(server.base_url()) // Override for test
+            .with_token("xaat-test")
+            .build()?;
+
+        assert!(client.uses_edge());
+
+        let result = client
+            .ingest("test-dataset", vec![json!({"foo": "bar"})])
+            .await;
+        assert!(result.is_ok(), "Expected ok, got: {:?}", result);
+
+        edge_mock.assert_hits_async(1).await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_legacy_ingest_uses_correct_path() -> Result<(), Box<dyn std::error::Error>> {
+        let server = MockServer::start();
+        let legacy_mock = server.mock(|when, then| {
+            // Legacy endpoints use /v1/datasets/{dataset}/ingest
+            when.method(POST).path("/v1/datasets/test-dataset/ingest");
+            then.status(200).json_body(json!({
+                "ingested": 1,
+                "failed": 0,
+                "failures": [],
+                "processedBytes": 100,
+                "blocksCreated": 0,
+                "walLength": 0
+            }));
+        });
+
+        let client = Client::builder()
+            .no_env()
+            .with_url(server.base_url())
+            .with_ingest_url(server.base_url()) // Explicit, non-edge URL
+            .with_token("xaat-test")
+            .build()?;
+
+        assert!(!client.uses_edge());
+
+        let result = client
+            .ingest("test-dataset", vec![json!({"foo": "bar"})])
+            .await;
+        assert!(result.is_ok(), "Expected ok, got: {:?}", result);
+
+        legacy_mock.assert_hits_async(1).await;
+        Ok(())
+    }
+
+    #[test]
+    fn test_region_builds_correct_ingest_url() {
+        let client = Client::builder()
+            .no_env()
+            .with_token("xaat-test")
+            .with_region("eu-central-1.aws.edge.axiom.co")
+            .build()
+            .unwrap();
+
+        assert_eq!(
+            client.ingest_url(),
+            "https://eu-central-1.aws.edge.axiom.co"
+        );
+        assert!(client.uses_edge());
+    }
+
+    #[test]
+    fn test_ingest_url_takes_precedence_over_region() {
+        let client = Client::builder()
+            .no_env()
+            .with_token("xaat-test")
+            .with_region("eu-central-1.aws.edge.axiom.co")
+            .with_ingest_url("https://custom.ingest.endpoint")
+            .build()
+            .unwrap();
+
+        assert_eq!(client.ingest_url(), "https://custom.ingest.endpoint");
+    }
+
+    #[test]
+    fn test_default_cloud_uses_edge() {
+        // When using default cloud (api.axiom.co), should use edge endpoint
+        let client = Client::builder()
+            .no_env()
+            .with_token("xaat-test")
+            .build()
+            .unwrap();
+
+        assert_eq!(client.api_url(), "https://api.axiom.co");
+        assert_eq!(client.ingest_url(), "https://us-east-1.aws.edge.axiom.co");
+        assert!(client.uses_edge());
+    }
+
+    #[test]
+    fn test_custom_url_without_region_is_backwards_compatible() {
+        // Custom URL without region should use same URL for API and ingest (legacy mode)
+        let client = Client::builder()
+            .no_env()
+            .with_token("xaat-test")
+            .with_url("https://my-axiom-instance.example.com")
+            .build()
+            .unwrap();
+
+        assert_eq!(client.api_url(), "https://my-axiom-instance.example.com");
+        assert_eq!(
+            client.ingest_url(),
+            "https://my-axiom-instance.example.com"
+        );
+        assert!(!client.uses_edge());
     }
 }

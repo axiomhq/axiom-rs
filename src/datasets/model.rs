@@ -503,6 +503,7 @@ pub struct Aggregation {
 }
 
 /// Supported filter operations. Supported types listed behind each operation.
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 #[serde(rename_all = "lowercase")]
@@ -562,6 +563,7 @@ enum FilterOp {
 }
 
 /// A filter is applied to a query.
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 struct Filter {
