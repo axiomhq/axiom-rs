@@ -485,8 +485,8 @@ mod test {
     }
 
     #[test]
-    fn test_default_cloud_uses_edge() {
-        // When using default cloud (api.axiom.co), should use edge endpoint
+    fn test_default_cloud_without_edge_config_uses_legacy() {
+        // When using default cloud without edge config, should use API URL (legacy mode)
         let client = Client::builder()
             .no_env()
             .with_token("xaat-test")
@@ -494,8 +494,8 @@ mod test {
             .unwrap();
 
         assert_eq!(client.api_url(), "https://api.axiom.co");
-        assert_eq!(client.edge_url(), "https://us-east-1.aws.edge.axiom.co");
-        assert!(client.uses_edge());
+        assert_eq!(client.edge_url(), "https://api.axiom.co");
+        assert!(!client.uses_edge());
     }
 
     #[test]

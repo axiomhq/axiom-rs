@@ -29,9 +29,6 @@ use crate::{
 /// API URL is the URL for the Axiom Cloud API.
 static API_URL: &str = "https://api.axiom.co";
 
-/// Default edge URL for Axiom Cloud (US East 1).
-static DEFAULT_EDGE_URL: &str = "https://us-east-1.aws.edge.axiom.co";
-
 /// Request options that can be passed to some handlers.
 #[derive(Debug, Default)]
 pub struct RequestOptions {
@@ -498,26 +495,21 @@ impl Builder {
             region = env::var("AXIOM_EDGE_REGION").unwrap_or_default();
         }
 
-        // Determine ingest URL and whether we're using edge endpoints
-        // Priority: edge_url > region > default
-        // Edge mode is determined by: region being set OR edge_url looking like an edge URL
-        let uses_edge = !region.is_empty()
-            || edge_url.contains(".edge.")
-            || edge_url.contains("/v1/ingest")
-            || (edge_url.is_empty() && api_url == API_URL);
+        // Determine edge URL and whether we're using edge endpoints
+        // Priority: edge_url > edge_region > api_url (backwards compatible)
+        // Edge mode requires explicit configuration via edge_url or edge_region
+        let uses_edge =
+            !region.is_empty() || edge_url.contains(".edge.") || edge_url.contains("/v1/ingest");
 
         let edge_url = if !edge_url.is_empty() {
-            // Explicit ingest URL takes precedence
+            // Explicit edge URL takes precedence
             edge_url
         } else if !region.is_empty() {
             // Region specified - build edge URL
             let region = region.trim_end_matches('/');
             format!("https://{region}")
-        } else if api_url == API_URL {
-            // Default cloud: use default edge endpoint for ingest
-            DEFAULT_EDGE_URL.to_string()
         } else {
-            // Custom API URL without region - use same URL for ingest (backwards compatible)
+            // No edge config - use API URL for ingest (backwards compatible)
             api_url.clone()
         };
 
