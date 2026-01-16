@@ -281,6 +281,7 @@ mod test {
 
         let server = MockServer::start();
         let rate_mock = server.mock(|when, then| {
+            // No edge config, uses legacy path
             when.method(POST).path("/v1/datasets/test/ingest");
             then.status(430)
                 .json_body(json!({ "message": "ingest limit exceeded" }))
@@ -292,10 +293,10 @@ mod test {
                 );
         });
 
+        // No edge config - uses legacy path format
         let client = Client::builder()
             .no_env()
             .with_url(server.base_url())
-            .with_edge_url(server.base_url())
             .with_token("xapt-nope")
             .build()?;
 
@@ -463,14 +464,18 @@ mod test {
             }));
         });
 
+        // No edge config - uses legacy path format
         let client = Client::builder()
             .no_env()
             .with_url(server.base_url())
-            .with_edge_url(server.base_url()) // Explicit, non-edge URL
             .with_token("xaat-test")
             .build()?;
 
         assert!(!client.uses_edge());
+        assert_eq!(
+            client.ingest_path_style(),
+            crate::client::IngestPathStyle::Legacy
+        );
 
         let result = client
             .ingest("test-dataset", vec![json!({"foo": "bar"})])
@@ -478,6 +483,45 @@ mod test {
         assert!(result.is_ok(), "Expected ok, got: {:?}", result);
 
         legacy_mock.assert_hits_async(1).await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_edge_url_without_path_uses_edge_path() -> Result<(), Box<dyn std::error::Error>> {
+        let server = MockServer::start();
+        let edge_mock = server.mock(|when, then| {
+            // Edge endpoints use /v1/ingest/{dataset}
+            when.method(POST).path("/v1/ingest/test-dataset");
+            then.status(200).json_body(json!({
+                "ingested": 1,
+                "failed": 0,
+                "failures": [],
+                "processedBytes": 100,
+                "blocksCreated": 0,
+                "walLength": 0
+            }));
+        });
+
+        // edge_url without path uses edge path format
+        let client = Client::builder()
+            .no_env()
+            .with_url(server.base_url())
+            .with_edge_url(server.base_url())
+            .with_token("xaat-test")
+            .build()?;
+
+        assert!(client.uses_edge());
+        assert_eq!(
+            client.ingest_path_style(),
+            crate::client::IngestPathStyle::Edge
+        );
+
+        let result = client
+            .ingest("test-dataset", vec![json!({"foo": "bar"})])
+            .await;
+        assert!(result.is_ok(), "Expected ok, got: {:?}", result);
+
+        edge_mock.assert_hits_async(1).await;
         Ok(())
     }
 

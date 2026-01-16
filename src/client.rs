@@ -34,11 +34,11 @@ static API_URL: &str = "https://api.axiom.co";
 pub enum IngestPathStyle {
     /// Legacy path format: `/v1/datasets/{dataset}/ingest`
     ///
-    /// Used when no edge config is set, or `edge_url` is set without a path.
+    /// Used when no edge config is set.
     Legacy,
     /// Edge path format: `/v1/ingest/{dataset}`
     ///
-    /// Used when `edge_region` is set.
+    /// Used when `edge_region` is set, or `edge_url` is set without a path.
     Edge,
     /// URL has a custom path - use as-is without appending any path.
     ///
@@ -540,8 +540,8 @@ impl Builder {
                 // URL has custom path - use as-is
                 (edge_url, IngestPathStyle::AsIs)
             } else {
-                // URL without path - use legacy path format for backwards compatibility
-                (edge_url, IngestPathStyle::Legacy)
+                // URL without path - use edge path format
+                (edge_url, IngestPathStyle::Edge)
             }
         } else if !region.is_empty() {
             // Region specified - build edge URL with edge path format
