@@ -512,10 +512,7 @@ mod test {
             .unwrap();
 
         assert_eq!(client.api_url(), "https://my-axiom-instance.example.com");
-        assert_eq!(
-            client.ingest_url(),
-            "https://my-axiom-instance.example.com"
-        );
+        assert_eq!(client.ingest_url(), "https://my-axiom-instance.example.com");
         assert!(!client.uses_edge());
     }
 }
