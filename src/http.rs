@@ -295,7 +295,7 @@ mod test {
         let client = Client::builder()
             .no_env()
             .with_url(server.base_url())
-            .with_ingest_url(server.base_url())
+            .with_edge_url(server.base_url())
             .with_token("xapt-nope")
             .build()?;
 
@@ -333,7 +333,7 @@ mod test {
         let client = Client::builder()
             .no_env()
             .with_url(server.base_url())
-            .with_ingest_url(server.base_url())
+            .with_edge_url(server.base_url())
             .with_token("xapt-nope")
             .build()?;
 
@@ -408,8 +408,8 @@ mod test {
         let client = Client::builder()
             .no_env()
             .with_url(server.base_url())
-            .with_region("test.edge.axiom.co") // This triggers edge mode
-            .with_ingest_url(server.base_url()) // Override for test
+            .with_edge_region("test.edge.axiom.co") // This triggers edge mode
+            .with_edge_url(server.base_url()) // Override for test
             .with_token("xaat-test")
             .build()?;
 
@@ -443,7 +443,7 @@ mod test {
         let client = Client::builder()
             .no_env()
             .with_url(server.base_url())
-            .with_ingest_url(server.base_url()) // Explicit, non-edge URL
+            .with_edge_url(server.base_url()) // Explicit, non-edge URL
             .with_token("xaat-test")
             .build()?;
 
@@ -459,32 +459,29 @@ mod test {
     }
 
     #[test]
-    fn test_region_builds_correct_ingest_url() {
+    fn test_region_builds_correct_edge_url() {
         let client = Client::builder()
             .no_env()
             .with_token("xaat-test")
-            .with_region("eu-central-1.aws.edge.axiom.co")
+            .with_edge_region("eu-central-1.aws.edge.axiom.co")
             .build()
             .unwrap();
 
-        assert_eq!(
-            client.ingest_url(),
-            "https://eu-central-1.aws.edge.axiom.co"
-        );
+        assert_eq!(client.edge_url(), "https://eu-central-1.aws.edge.axiom.co");
         assert!(client.uses_edge());
     }
 
     #[test]
-    fn test_ingest_url_takes_precedence_over_region() {
+    fn test_edge_url_takes_precedence_over_region() {
         let client = Client::builder()
             .no_env()
             .with_token("xaat-test")
-            .with_region("eu-central-1.aws.edge.axiom.co")
-            .with_ingest_url("https://custom.ingest.endpoint")
+            .with_edge_region("eu-central-1.aws.edge.axiom.co")
+            .with_edge_url("https://custom.ingest.endpoint")
             .build()
             .unwrap();
 
-        assert_eq!(client.ingest_url(), "https://custom.ingest.endpoint");
+        assert_eq!(client.edge_url(), "https://custom.ingest.endpoint");
     }
 
     #[test]
@@ -497,7 +494,7 @@ mod test {
             .unwrap();
 
         assert_eq!(client.api_url(), "https://api.axiom.co");
-        assert_eq!(client.ingest_url(), "https://us-east-1.aws.edge.axiom.co");
+        assert_eq!(client.edge_url(), "https://us-east-1.aws.edge.axiom.co");
         assert!(client.uses_edge());
     }
 
@@ -512,7 +509,7 @@ mod test {
             .unwrap();
 
         assert_eq!(client.api_url(), "https://my-axiom-instance.example.com");
-        assert_eq!(client.ingest_url(), "https://my-axiom-instance.example.com");
+        assert_eq!(client.edge_url(), "https://my-axiom-instance.example.com");
         assert!(!client.uses_edge());
     }
 }

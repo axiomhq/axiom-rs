@@ -62,7 +62,7 @@ pub struct RequestOptions {
 ///     // Use edge ingestion for a specific region.
 ///     let client = Client::builder()
 ///         .with_token("my-token")
-///         .with_region("eu-central-1.aws.edge.axiom.co")
+///         .with_edge_region("eu-central-1.aws.edge.axiom.co")
 ///         .build()?;
 ///
 ///     Ok(())
@@ -73,11 +73,11 @@ pub struct Client {
     /// HTTP client for API operations (datasets, users, annotations).
     api_http: http::Client,
     /// HTTP client for ingest and query operations (may use edge endpoint).
-    ingest_http: http::Client,
+    edge_http: http::Client,
     /// The API URL.
     api_url: String,
     /// The ingest/query URL (may be edge endpoint).
-    ingest_url: String,
+    edge_url: String,
     /// Whether the ingest URL is an edge endpoint (uses different path format).
     uses_edge: bool,
 }
@@ -125,8 +125,8 @@ impl Client {
     /// Get the ingest/query url
     #[doc(hidden)]
     #[must_use]
-    pub fn ingest_url(&self) -> &str {
-        &self.ingest_url
+    pub fn edge_url(&self) -> &str {
+        &self.edge_url
     }
 
     /// Returns true if the client is configured to use an edge endpoint.
@@ -160,8 +160,8 @@ impl Client {
 
         let query_params = serde_qs::to_string(&query_params)?;
         let path = format!("/v1/datasets/_apl?{query_params}");
-        // Query uses ingest_http as it's supported on edge endpoints
-        let resp = self.ingest_http.post(path, &req).await?;
+        // Query uses edge_http as it's supported on edge endpoints
+        let resp = self.edge_http.post(path, &req).await?;
 
         let saved_query_id = resp
             .headers()
@@ -295,7 +295,7 @@ impl Client {
             format!("/v1/datasets/{dataset_name}/ingest")
         };
 
-        self.ingest_http
+        self.edge_http
             .post_bytes(path, payload, headers)
             .await?
             .json()
@@ -366,7 +366,7 @@ impl Client {
 pub struct Builder {
     env_fallback: bool,
     url: Option<String>,
-    ingest_url: Option<String>,
+    edge_url: Option<String>,
     region: Option<String>,
     token: Option<String>,
     org_id: Option<String>,
@@ -378,7 +378,7 @@ impl Builder {
         Self {
             env_fallback: true,
             url: None,
-            ingest_url: None,
+            edge_url: None,
             region: None,
             token: None,
             org_id: None,
@@ -422,7 +422,7 @@ impl Builder {
     /// When set, data is sent to `https://{region}/v1/ingest/{dataset}`.
     ///
     /// If this is not set, the region will be read from the environment
-    /// variable `AXIOM_REGION`.
+    /// variable `AXIOM_EDGE_REGION`.
     ///
     /// # Examples
     /// ```no_run
@@ -430,25 +430,25 @@ impl Builder {
     ///
     /// let client = Client::builder()
     ///     .with_token("my-token")
-    ///     .with_region("eu-central-1.aws.edge.axiom.co")
+    ///     .with_edge_region("eu-central-1.aws.edge.axiom.co")
     ///     .build();
     /// ```
     #[must_use]
-    pub fn with_region<S: Into<String>>(mut self, region: S) -> Self {
+    pub fn with_edge_region<S: Into<String>>(mut self, region: S) -> Self {
         self.region = Some(region.into());
         self
     }
 
     /// Set an explicit ingest URL for the client.
     ///
-    /// This takes precedence over `with_region`. Use this when you need
+    /// This takes precedence over `with_edge_region`. Use this when you need
     /// full control over the ingest endpoint URL.
     ///
     /// If this is not set, the ingest URL will be read from the environment
-    /// variable `AXIOM_INGEST_URL`.
+    /// variable `AXIOM_EDGE_URL`.
     #[must_use]
-    pub fn with_ingest_url<S: Into<String>>(mut self, ingest_url: S) -> Self {
-        self.ingest_url = Some(ingest_url.into());
+    pub fn with_edge_url<S: Into<String>>(mut self, edge_url: S) -> Self {
+        self.edge_url = Some(edge_url.into());
         self
     }
 
@@ -487,28 +487,28 @@ impl Builder {
         }
 
         // Resolve ingest URL and region
-        // Priority: ingest_url > region > api_url (for backwards compatibility)
-        let mut ingest_url = self.ingest_url.unwrap_or_default();
-        if ingest_url.is_empty() && env_fallback {
-            ingest_url = env::var("AXIOM_INGEST_URL").unwrap_or_default();
+        // Priority: edge_url > region > api_url (for backwards compatibility)
+        let mut edge_url = self.edge_url.unwrap_or_default();
+        if edge_url.is_empty() && env_fallback {
+            edge_url = env::var("AXIOM_EDGE_URL").unwrap_or_default();
         }
 
         let mut region = self.region.unwrap_or_default();
         if region.is_empty() && env_fallback {
-            region = env::var("AXIOM_REGION").unwrap_or_default();
+            region = env::var("AXIOM_EDGE_REGION").unwrap_or_default();
         }
 
         // Determine ingest URL and whether we're using edge endpoints
-        // Priority: ingest_url > region > default
-        // Edge mode is determined by: region being set OR ingest_url looking like an edge URL
+        // Priority: edge_url > region > default
+        // Edge mode is determined by: region being set OR edge_url looking like an edge URL
         let uses_edge = !region.is_empty()
-            || ingest_url.contains(".edge.")
-            || ingest_url.contains("/v1/ingest")
-            || (ingest_url.is_empty() && api_url == API_URL);
+            || edge_url.contains(".edge.")
+            || edge_url.contains("/v1/ingest")
+            || (edge_url.is_empty() && api_url == API_URL);
 
-        let ingest_url = if !ingest_url.is_empty() {
+        let edge_url = if !edge_url.is_empty() {
             // Explicit ingest URL takes precedence
-            ingest_url
+            edge_url
         } else if !region.is_empty() {
             // Region specified - build edge URL
             let region = region.trim_end_matches('/');
@@ -527,13 +527,13 @@ impl Builder {
             Some(org_id)
         };
         let api_http = http::Client::new(api_url.clone(), token.clone(), org_id_opt.clone())?;
-        let ingest_http = http::Client::new(ingest_url.clone(), token, org_id_opt)?;
+        let edge_http = http::Client::new(edge_url.clone(), token, org_id_opt)?;
 
         Ok(Client {
             api_http,
-            ingest_http,
+            edge_http,
             api_url,
-            ingest_url,
+            edge_url,
             uses_edge,
         })
     }
