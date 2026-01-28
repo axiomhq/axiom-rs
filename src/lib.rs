@@ -50,7 +50,8 @@ pub mod annotations;
 pub mod datasets;
 pub mod users;
 
-pub use client::{Client, IngestPathStyle, RequestOptions};
+#[allow(deprecated)]
+pub use client::{Client, IngestPathStyle, PathStyle, RequestOptions};
 pub use error::Error;
 
 // Exported for `RequestOptions`.
