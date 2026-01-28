@@ -160,6 +160,7 @@ async fn test_datasets_impl(ctx: &mut Context) -> Result<(), Box<dyn std::error:
     tokio::time::sleep(StdDuration::from_secs(15)).await;
 
     // Get the dataset info and make sure four events have been ingested.
+    #[allow(deprecated)]
     let info = ctx.client.datasets().info(&ctx.dataset.name).await?;
     assert_eq!(ctx.dataset.name, info.stat.name);
     assert_eq!(4327, info.stat.num_events);
