@@ -502,97 +502,6 @@ pub struct Aggregation {
     pub argument: Option<JsonValue>,
 }
 
-/// Supported filter operations. Supported types listed behind each operation.
-#[allow(dead_code)]
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[non_exhaustive]
-#[serde(rename_all = "lowercase")]
-enum FilterOp {
-    /// Logical AND
-    And,
-    /// Logical OR
-    Or,
-    /// Logical NOT
-    Not,
-
-    // Works for strings and numbers.
-    /// equality (string, number)
-    #[serde(rename = "==")]
-    Equal,
-    /// negated equality (string, number)
-    #[serde(rename = "!=")]
-    NotEqual,
-    /// existance (string, number)
-    Exists,
-    /// negated existance (string, number)
-    NotExists,
-
-    // Only works for numbers.
-    /// greater than (number)
-    #[serde(rename = ">")]
-    GreaterThan,
-    /// greater than or equal (number)
-    #[serde(rename = ">=")]
-    GreaterThanEqual,
-    /// less than (number)
-    #[serde(rename = "<")]
-    LessThan,
-    /// less than or equal (number)
-    #[serde(rename = "<=")]
-    LessThanEqual,
-
-    // Only works for strings.
-    /// starts with (string)
-    StartsWith,
-    /// negated starts with (string)
-    NotStartsWith,
-    /// ends with (string)
-    EndsWith,
-    /// negated ends with (string)
-    NotEndsWith,
-    /// regular expression (string)
-    Regexp,
-    /// negated regular expression (string)
-    NotRegexp,
-
-    // Works for strings and arrays.
-    /// contains (string, array)
-    Contains,
-    /// negated contains (string, array)
-    NotContains,
-}
-
-/// A filter is applied to a query.
-#[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-struct Filter {
-    /// The operation of the filter.
-    pub op: FilterOp,
-    /// The field to filter on.
-    pub field: String,
-    /// The value to filter against.
-    pub value: JsonValue,
-    /// If the filter should be case insensitive.
-    #[serde(default)]
-    pub case_insensitive: bool,
-    /// Child filters that are applied to the filter.
-    #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub children: Vec<Filter>,
-}
-
-impl Default for Filter {
-    fn default() -> Self {
-        Filter {
-            op: FilterOp::Equal,
-            field: String::new(),
-            value: JsonValue::Null,
-            case_insensitive: false,
-            children: vec![],
-        }
-    }
-}
-
 /// A `VirtualField` is not part of a dataset and its value is derived from an
 /// expression. Aggregations, filters and orders can reference this field like
 /// any other field.
@@ -798,31 +707,6 @@ mod test {
         );
         assert_eq!(
             serde_json::from_str::<AggregationOp>(json_repr).expect("json error"),
-            enum_repr
-        );
-    }
-
-    #[test]
-    fn test_filter_op() {
-        let enum_repr = FilterOp::And;
-        let json_repr = r#""and""#;
-        assert_eq!(
-            serde_json::to_string(&enum_repr).expect("json error"),
-            json_repr
-        );
-        assert_eq!(
-            serde_json::from_str::<FilterOp>(json_repr).expect("json error"),
-            enum_repr
-        );
-
-        let enum_repr = FilterOp::Equal;
-        let json_repr = r#""==""#;
-        assert_eq!(
-            serde_json::to_string(&enum_repr).expect("json error"),
-            json_repr
-        );
-        assert_eq!(
-            serde_json::from_str::<FilterOp>(json_repr).expect("json error"),
             enum_repr
         );
     }
