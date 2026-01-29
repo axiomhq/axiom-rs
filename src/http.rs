@@ -439,7 +439,6 @@ mod test {
             .unwrap();
 
         assert!(client.uses_edge());
-        assert_eq!(client.path_style(), crate::client::PathStyle::Edge);
         assert_eq!(client.edge_url(), "https://eu-central-1.aws.edge.axiom.co");
     }
 
@@ -469,7 +468,6 @@ mod test {
             .build()?;
 
         assert!(client.uses_edge());
-        assert_eq!(client.path_style(), crate::client::PathStyle::AsIs);
 
         let result = client
             .ingest("test-dataset", vec![json!({"foo": "bar"})])
@@ -504,7 +502,6 @@ mod test {
             .build()?;
 
         assert!(!client.uses_edge());
-        assert_eq!(client.path_style(), crate::client::PathStyle::Legacy);
 
         let result = client
             .ingest("test-dataset", vec![json!({"foo": "bar"})])
@@ -540,7 +537,6 @@ mod test {
             .build()?;
 
         assert!(client.uses_edge());
-        assert_eq!(client.path_style(), crate::client::PathStyle::Edge);
 
         let result = client
             .ingest("test-dataset", vec![json!({"foo": "bar"})])
