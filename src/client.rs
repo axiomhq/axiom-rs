@@ -417,7 +417,6 @@ pub struct Builder {
     env_fallback: bool,
     url: Option<String>,
     edge_url: Option<String>,
-    edge: Option<String>,
     token: Option<String>,
     org_id: Option<String>,
 }
@@ -429,7 +428,6 @@ impl Builder {
             env_fallback: true,
             url: None,
             edge_url: None,
-            edge: None,
             token: None,
             org_id: None,
         }
@@ -468,14 +466,15 @@ impl Builder {
 
     /// Set the Axiom regional edge domain for ingestion and query.
     ///
-    /// Specify the domain name only (no scheme, no path).
+    /// Specify the domain name only (no scheme, no path). The `https://` scheme
+    /// will be automatically prepended.
     /// When set, ingest requests are sent to `https://{edge}/v1/ingest/{dataset}`
     /// and query requests are sent to `https://{edge}/v1/query/_apl`.
     ///
     /// If this is not set, the edge domain will be read from the environment
     /// variable `AXIOM_EDGE`.
     ///
-    /// Note: Edge endpoints require API tokens (`xaat-`), not personal tokens.
+    /// Note: Edge endpoints require API tokens (`xaat-`) for ingestion.
     ///
     /// # Examples
     /// ```no_run
@@ -488,19 +487,20 @@ impl Builder {
     /// ```
     #[must_use]
     pub fn with_edge<S: Into<String>>(mut self, edge: S) -> Self {
-        self.edge = Some(edge.into());
+        let edge = edge.into().trim_end_matches('/').to_string();
+        self.edge_url = Some(format!("https://{edge}"));
         self
     }
 
     /// Set an explicit edge URL for the client.
     ///
-    /// This takes precedence over `with_edge`. Use this when you need
-    /// full control over the edge endpoint URL.
+    /// Use this when you need full control over the edge endpoint URL,
+    /// for example when using a custom load balancer.
     ///
     /// If this is not set, the edge URL will be read from the environment
     /// variable `AXIOM_EDGE_URL`.
     ///
-    /// Note: Edge endpoints require API tokens (`xaat-`), not personal tokens.
+    /// Note: Edge endpoints require API tokens (`xaat-`) for ingestion.
     #[must_use]
     pub fn with_edge_url<S: Into<String>>(mut self, edge_url: S) -> Self {
         self.edge_url = Some(edge_url.into());
@@ -541,24 +541,29 @@ impl Builder {
             return Err(Error::MissingOrgId);
         }
 
-        // Resolve edge URL and edge domain
-        // Priority: edge_url > edge > api_url (for backwards compatibility)
+        // Resolve edge URL
+        // Priority: edge_url (from builder or AXIOM_EDGE_URL) > AXIOM_EDGE > api_url
         let mut edge_url = self.edge_url.unwrap_or_default();
         if edge_url.is_empty() && env_fallback {
             edge_url = env::var("AXIOM_EDGE_URL").unwrap_or_default();
         }
-
-        let mut edge = self.edge.unwrap_or_default();
-        if edge.is_empty() && env_fallback {
-            edge = env::var("AXIOM_EDGE").unwrap_or_default();
+        if edge_url.is_empty() && env_fallback {
+            // Fall back to AXIOM_EDGE (domain only) and prepend https://
+            let edge = env::var("AXIOM_EDGE").unwrap_or_default();
+            if !edge.is_empty() {
+                let edge = edge.trim_end_matches('/');
+                edge_url = format!("https://{edge}");
+            }
         }
 
         // Determine path style (which includes the URL)
-        // - edge: use Edge style (/v1/ingest/{dataset}, /v1/query/_apl)
         // - edge_url with path: use AsIs style (URL used as-is)
         // - edge_url without path: use Edge style
         // - no edge config: use Legacy style with api_url
-        let path_style = if !edge_url.is_empty() {
+        let path_style = if edge_url.is_empty() {
+            // No edge config - use API URL with legacy path format
+            PathStyle::Legacy(api_url.clone())
+        } else {
             // Check if URL has a custom path
             let has_custom_path = if let Ok(parsed) = url::Url::parse(&edge_url) {
                 let path = parsed.path();
@@ -574,13 +579,6 @@ impl Builder {
                 // URL without path - use edge path format
                 PathStyle::Edge(edge_url)
             }
-        } else if !edge.is_empty() {
-            // Edge domain specified - build edge URL with edge path format
-            let edge = edge.trim_end_matches('/');
-            PathStyle::Edge(format!("https://{edge}"))
-        } else {
-            // No edge config - use API URL with legacy path format
-            PathStyle::Legacy(api_url.clone())
         };
 
         let is_personal_token = is_personal_token(&token);
