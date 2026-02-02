@@ -281,6 +281,7 @@ mod test {
 
         let server = MockServer::start();
         let rate_mock = server.mock(|when, then| {
+            // No edge config, uses legacy path
             when.method(POST).path("/v1/datasets/test/ingest");
             then.status(430)
                 .json_body(json!({ "message": "ingest limit exceeded" }))
@@ -292,6 +293,7 @@ mod test {
                 );
         });
 
+        // No edge config - uses legacy path format
         let client = Client::builder()
             .no_env()
             .with_url(server.base_url())
@@ -312,12 +314,13 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_query_limit_exceeded() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_query_limit_exceeded_legacy() -> Result<(), Box<dyn std::error::Error>> {
         let expires_after = Duration::seconds(1);
         let tomorrow = Utc::now() + expires_after;
 
         let server = MockServer::start();
         let rate_mock = server.mock(|when, then| {
+            // Legacy query path
             when.method(POST).path("/v1/datasets/_apl");
             then.status(430)
                 .json_body(json!({ "message": "query limit exceeded" }))
@@ -329,6 +332,7 @@ mod test {
                 );
         });
 
+        // No edge config - uses legacy query path
         let client = Client::builder()
             .no_env()
             .with_url(server.base_url())
@@ -341,10 +345,47 @@ mod test {
                 assert_eq!(limits.remaining, 0);
                 assert_eq!(limits.reset.timestamp(), tomorrow.timestamp());
             }
-            res => panic!("Expected ingest limit error, got {:?}", res),
+            res => panic!("Expected query limit error, got {:?}", res),
         }
 
         rate_mock.assert_hits_async(1).await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_edge_query_uses_edge_path() -> Result<(), Box<dyn std::error::Error>> {
+        let server = MockServer::start();
+        let query_mock = server.mock(|when, then| {
+            // Edge query path
+            when.method(POST).path("/v1/query/_apl");
+            then.status(200).json_body(json!({
+                "status": {
+                    "elapsedTime": 1000,
+                    "blocksExamined": 1,
+                    "rowsExamined": 1,
+                    "rowsMatched": 1,
+                    "numGroups": 0,
+                    "isPartial": false,
+                    "cacheStatus": 0,
+                    "minBlockTime": "2021-01-01T00:00:00Z",
+                    "maxBlockTime": "2021-01-01T00:00:00Z"
+                },
+                "tables": []
+            }));
+        });
+
+        // Edge config - uses edge query path
+        let client = Client::builder()
+            .no_env()
+            .with_url(server.base_url())
+            .with_edge_url(server.base_url())
+            .with_token("xaat-test")
+            .build()?;
+
+        let result = client.query("test | count", None).await;
+        assert!(result.is_ok(), "Expected ok, got: {:?}", result);
+
+        query_mock.assert_hits_async(1).await;
         Ok(())
     }
 
@@ -384,6 +425,244 @@ mod test {
         }
 
         rate_mock.assert_hits_async(1).await;
+        Ok(())
+    }
+
+    #[test]
+    fn test_edge_uses_edge_path_style() {
+        // Verify with_edge sets the correct path style and URL
+        let client = Client::builder()
+            .no_env()
+            .with_token("xaat-test")
+            .with_edge("eu-central-1.aws.edge.axiom.co")
+            .build()
+            .unwrap();
+
+        assert!(client.uses_edge());
+        assert_eq!(client.edge_url(), "https://eu-central-1.aws.edge.axiom.co");
+    }
+
+    #[tokio::test]
+    async fn test_edge_url_with_path_uses_as_is() -> Result<(), Box<dyn std::error::Error>> {
+        let server = MockServer::start();
+        let edge_mock = server.mock(|when, then| {
+            // Custom path - used as-is
+            when.method(POST).path("/custom/ingest/path");
+            then.status(200).json_body(json!({
+                "ingested": 1,
+                "failed": 0,
+                "failures": [],
+                "processedBytes": 100,
+                "blocksCreated": 0,
+                "walLength": 0
+            }));
+        });
+
+        let edge_url_with_path = format!("{}/custom/ingest/path", server.base_url());
+
+        let client = Client::builder()
+            .no_env()
+            .with_url(server.base_url())
+            .with_edge_url(&edge_url_with_path)
+            .with_token("xaat-test")
+            .build()?;
+
+        assert!(client.uses_edge());
+
+        let result = client
+            .ingest("test-dataset", vec![json!({"foo": "bar"})])
+            .await;
+        assert!(result.is_ok(), "Expected ok, got: {:?}", result);
+
+        edge_mock.assert_hits_async(1).await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_legacy_ingest_uses_correct_path() -> Result<(), Box<dyn std::error::Error>> {
+        let server = MockServer::start();
+        let legacy_mock = server.mock(|when, then| {
+            // Legacy endpoints use /v1/datasets/{dataset}/ingest
+            when.method(POST).path("/v1/datasets/test-dataset/ingest");
+            then.status(200).json_body(json!({
+                "ingested": 1,
+                "failed": 0,
+                "failures": [],
+                "processedBytes": 100,
+                "blocksCreated": 0,
+                "walLength": 0
+            }));
+        });
+
+        // No edge config - uses legacy path format
+        let client = Client::builder()
+            .no_env()
+            .with_url(server.base_url())
+            .with_token("xaat-test")
+            .build()?;
+
+        assert!(!client.uses_edge());
+
+        let result = client
+            .ingest("test-dataset", vec![json!({"foo": "bar"})])
+            .await;
+        assert!(result.is_ok(), "Expected ok, got: {:?}", result);
+
+        legacy_mock.assert_hits_async(1).await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_edge_url_without_path_uses_edge_path() -> Result<(), Box<dyn std::error::Error>> {
+        let server = MockServer::start();
+        let edge_mock = server.mock(|when, then| {
+            // Edge endpoints use /v1/ingest/{dataset}
+            when.method(POST).path("/v1/ingest/test-dataset");
+            then.status(200).json_body(json!({
+                "ingested": 1,
+                "failed": 0,
+                "failures": [],
+                "processedBytes": 100,
+                "blocksCreated": 0,
+                "walLength": 0
+            }));
+        });
+
+        // edge_url without path uses edge path format
+        let client = Client::builder()
+            .no_env()
+            .with_url(server.base_url())
+            .with_edge_url(server.base_url())
+            .with_token("xaat-test")
+            .build()?;
+
+        assert!(client.uses_edge());
+
+        let result = client
+            .ingest("test-dataset", vec![json!({"foo": "bar"})])
+            .await;
+        assert!(result.is_ok(), "Expected ok, got: {:?}", result);
+
+        edge_mock.assert_hits_async(1).await;
+        Ok(())
+    }
+
+    #[test]
+    fn test_edge_builds_correct_edge_url() {
+        let client = Client::builder()
+            .no_env()
+            .with_token("xaat-test")
+            .with_edge("eu-central-1.aws.edge.axiom.co")
+            .build()
+            .unwrap();
+
+        assert_eq!(client.edge_url(), "https://eu-central-1.aws.edge.axiom.co");
+        assert!(client.uses_edge());
+    }
+
+    #[test]
+    fn test_edge_url_takes_precedence_over_edge() {
+        let client = Client::builder()
+            .no_env()
+            .with_token("xaat-test")
+            .with_edge("eu-central-1.aws.edge.axiom.co")
+            .with_edge_url("https://custom.ingest.endpoint")
+            .build()
+            .unwrap();
+
+        assert_eq!(client.edge_url(), "https://custom.ingest.endpoint");
+    }
+
+    #[test]
+    fn test_default_cloud_without_edge_config_uses_legacy() {
+        // When using default cloud without edge config, should use API URL (legacy mode)
+        let client = Client::builder()
+            .no_env()
+            .with_token("xaat-test")
+            .build()
+            .unwrap();
+
+        assert_eq!(client.api_url(), "https://api.axiom.co");
+        assert_eq!(client.edge_url(), "https://api.axiom.co");
+        assert!(!client.uses_edge());
+    }
+
+    #[test]
+    fn test_custom_url_without_edge_is_backwards_compatible() {
+        // Custom URL without edge should use same URL for API and ingest (legacy mode)
+        let client = Client::builder()
+            .no_env()
+            .with_token("xaat-test")
+            .with_url("https://my-axiom-instance.example.com")
+            .build()
+            .unwrap();
+
+        assert_eq!(client.api_url(), "https://my-axiom-instance.example.com");
+        assert_eq!(client.edge_url(), "https://my-axiom-instance.example.com");
+        assert!(!client.uses_edge());
+    }
+
+    #[tokio::test]
+    async fn test_personal_token_rejected_for_edge_ingest() {
+        let server = MockServer::start();
+
+        // Personal tokens should be rejected for edge ingest
+        let client = Client::builder()
+            .no_env()
+            .with_url(server.base_url())
+            .with_token("xapt-personal-token")
+            .with_edge("eu-central-1.aws.edge.axiom.co")
+            .build()
+            .unwrap();
+
+        let result = client
+            .ingest("test-dataset", vec![serde_json::json!({"foo": "bar"})])
+            .await;
+
+        match result {
+            Err(Error::PersonalTokenNotSupportedForEdge) => {}
+            other => panic!(
+                "Expected PersonalTokenNotSupportedForEdge error, got: {:?}",
+                other
+            ),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_legacy_query_uses_correct_path() -> Result<(), Box<dyn std::error::Error>> {
+        let server = MockServer::start();
+        let query_mock = server.mock(|when, then| {
+            // Legacy query path
+            when.method(POST).path("/v1/datasets/_apl");
+            then.status(200).json_body(json!({
+                "status": {
+                    "elapsedTime": 1000,
+                    "blocksExamined": 1,
+                    "rowsExamined": 1,
+                    "rowsMatched": 1,
+                    "numGroups": 0,
+                    "isPartial": false,
+                    "cacheStatus": 0,
+                    "minBlockTime": "2021-01-01T00:00:00Z",
+                    "maxBlockTime": "2021-01-01T00:00:00Z"
+                },
+                "tables": []
+            }));
+        });
+
+        // No edge config - uses legacy query path
+        let client = Client::builder()
+            .no_env()
+            .with_url(server.base_url())
+            .with_token("xaat-test")
+            .build()?;
+
+        assert!(!client.uses_edge());
+
+        let result = client.query("test | count", None).await;
+        assert!(result.is_ok(), "Expected ok, got: {:?}", result);
+
+        query_mock.assert_hits_async(1).await;
         Ok(())
     }
 }

@@ -96,6 +96,11 @@ pub enum Error {
     #[error("Invalid content encoding: {0}")]
     /// Invalid content encoding.
     InvalidContentEncoding(String),
+    #[error(
+        "Personal tokens are not supported for edge endpoints. Use an API token (xaat-) instead."
+    )]
+    /// Personal tokens are not supported for edge endpoints.
+    PersonalTokenNotSupportedForEdge,
 }
 
 /// This is the manual implementation. We don't really care if the error is
