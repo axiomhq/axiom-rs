@@ -110,7 +110,7 @@ pub struct RequestOptions {
 ///         .with_org_id("my-org-id")
 ///         .build()?;
 ///
-///     // Use edge ingestion for a specific region.
+///     // Use edge ingestion for a specific edge deployment.
 ///     let client = Client::builder()
 ///         .with_token("my-token")
 ///         .with_edge("eu-central-1.aws.edge.axiom.co")
@@ -464,7 +464,7 @@ impl Builder {
         self
     }
 
-    /// Set the Axiom regional edge domain for ingestion and query.
+    /// Set the Axiom edge deployment domain for ingestion and query.
     ///
     /// Specify the domain name only (no scheme, no path). The `https://` scheme
     /// will be automatically prepended.
