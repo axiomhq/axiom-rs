@@ -1,5 +1,7 @@
 use crate::{
-    dashboards::model::{Chart, DashboardDocument, DashboardWriteStatus, KnownChart, UpsertOptions},
+    dashboards::model::{
+        Chart, DashboardDocument, DashboardWriteStatus, KnownChart, UpsertOptions,
+    },
     error::Error,
     limits, Client,
 };
@@ -20,7 +22,10 @@ fn chart_unknown_variant_round_trips() {
     });
     let chart: Chart = serde_json::from_value(raw.clone()).expect("chart decode");
     match &chart {
-        Chart::Unknown(v) => assert_eq!(v.get("type").and_then(|t| t.as_str()), Some("FutureChartKind")),
+        Chart::Unknown(v) => assert_eq!(
+            v.get("type").and_then(|t| t.as_str()),
+            Some("FutureChartKind")
+        ),
         Chart::Known(k) => panic!("expected Unknown, got Known: {:?}", k),
     }
     assert_eq!(chart.type_str(), Some("FutureChartKind"));
@@ -271,7 +276,8 @@ async fn put_dashboard_rate_limited() -> Result<(), Box<dyn std::error::Error>> 
 }
 
 #[tokio::test]
-async fn put_dashboard_412_without_current_version_falls_back_to_axiom() -> Result<(), Box<dyn std::error::Error>> {
+async fn put_dashboard_412_without_current_version_falls_back_to_axiom(
+) -> Result<(), Box<dyn std::error::Error>> {
     // A 412 without `currentVersion` shouldn't panic on decode; we fall
     // back to the generic `Error::Axiom` envelope.
     let server = MockServer::start();

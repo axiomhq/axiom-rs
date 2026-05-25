@@ -128,9 +128,8 @@ async fn tags_path_segment_is_percent_encoded() -> Result<(), Box<dyn std::error
     let server = MockServer::start();
     let (start, end) = one_hour();
     let mock = server.mock(|when, then| {
-        when.method(GET).path(
-            "/v1/query/metrics/info/datasets/ds/metrics/weird%2Fmetric%20name/tags",
-        );
+        when.method(GET)
+            .path("/v1/query/metrics/info/datasets/ds/metrics/weird%2Fmetric%20name/tags");
         then.status(200).json_body(json!(["k"]));
     });
     let client = Client::builder()
@@ -287,38 +286,35 @@ async fn query_mpl_params_wire_shape() -> Result<(), Box<dyn std::error::Error>>
     // — `json_body_partial` alone would happily pass if both `params`
     // and `queryParams` were sent.
     let mock = server.mock(|when, then| {
-        when.method(POST)
-            .path("/v1/query/_mpl")
-            .matches(|req| {
-                let bytes = match req.body.as_deref() {
-                    Some(b) => b,
-                    None => return false,
-                };
-                let body: serde_json::Value = match serde_json::from_slice(bytes) {
-                    Ok(v) => v,
-                    Err(_) => return false,
-                };
-                let obj = match body.as_object() {
-                    Some(o) => o,
-                    None => return false,
-                };
-                // Wrong field name must not appear.
-                if obj.contains_key("queryParams") {
-                    return false;
-                }
-                let params = match obj.get("params").and_then(|v| v.as_object()) {
-                    Some(p) => p,
-                    None => return false,
-                };
-                // Prefixed keys present, raw keys absent.
-                params.contains_key("param__svc")
-                    && params.contains_key("param__window")
-                    && !params.contains_key("svc")
-                    && !params.contains_key("window")
-                    && params.get("param__svc").and_then(|v| v.as_str())
-                        == Some("\"frontend\"")
-                    && params.get("param__window").and_then(|v| v.as_str()) == Some("5m")
-            });
+        when.method(POST).path("/v1/query/_mpl").matches(|req| {
+            let bytes = match req.body.as_deref() {
+                Some(b) => b,
+                None => return false,
+            };
+            let body: serde_json::Value = match serde_json::from_slice(bytes) {
+                Ok(v) => v,
+                Err(_) => return false,
+            };
+            let obj = match body.as_object() {
+                Some(o) => o,
+                None => return false,
+            };
+            // Wrong field name must not appear.
+            if obj.contains_key("queryParams") {
+                return false;
+            }
+            let params = match obj.get("params").and_then(|v| v.as_object()) {
+                Some(p) => p,
+                None => return false,
+            };
+            // Prefixed keys present, raw keys absent.
+            params.contains_key("param__svc")
+                && params.contains_key("param__window")
+                && !params.contains_key("svc")
+                && !params.contains_key("window")
+                && params.get("param__svc").and_then(|v| v.as_str()) == Some("\"frontend\"")
+                && params.get("param__window").and_then(|v| v.as_str()) == Some("5m")
+        });
         then.status(200).json_body(json!({ "series": [] }));
     });
     let client = Client::builder()
@@ -337,7 +333,12 @@ async fn query_mpl_params_wire_shape() -> Result<(), Box<dyn std::error::Error>>
     };
     let _ = client
         .metrics()
-        .query("param $svc: string; param $window: Duration; _", start, end, opts)
+        .query(
+            "param $svc: string; param $window: Duration; _",
+            start,
+            end,
+            opts,
+        )
         .await?;
     mock.assert_hits_async(1).await;
     Ok(())

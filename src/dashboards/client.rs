@@ -1,5 +1,5 @@
-use std::fmt::Debug as FmtDebug;
 use serde::Serialize;
+use std::fmt::Debug as FmtDebug;
 use tracing::instrument;
 
 use crate::{

@@ -93,9 +93,7 @@ impl<'client> Client<'client> {
         let dataset = dataset.into();
         let metric = encode_segment(&metric.into());
         let qs = TimeRange::new(start, end).to_query()?;
-        let path = format!(
-            "/v1/query/metrics/info/datasets/{dataset}/metrics/{metric}/tags?{qs}"
-        );
+        let path = format!("/v1/query/metrics/info/datasets/{dataset}/metrics/{metric}/tags?{qs}");
         self.http_client.get(path).await?.json().await
     }
 
