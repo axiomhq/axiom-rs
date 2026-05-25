@@ -27,10 +27,11 @@
 //! ```
 mod client;
 mod model;
+#[cfg(test)]
 mod tests;
 
 pub use client::Client;
 pub use model::{
-    Chart, ChartBase, Dashboard, DashboardDocument, DashboardWriteResponse, DashboardWriteStatus,
-    LayoutItem, UpsertRequest,
+    Chart, ChartBase, CreateOptions, Dashboard, DashboardDocument, DashboardWriteResponse,
+    DashboardWriteStatus, KnownChart, LayoutItem, UpsertOptions, UpsertRequest,
 };

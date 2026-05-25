@@ -56,6 +56,38 @@ impl Dashboard {
     }
 }
 
+/// Per-call options for [`Client::create`].
+///
+/// [`Client::create`]: super::Client::create
+#[derive(Debug, Default, Clone)]
+#[must_use]
+pub struct CreateOptions {
+    /// Desired `uid`. When `None` the server assigns one derived from the
+    /// dashboard's name.
+    pub uid: Option<String>,
+    /// Free-form description of the change, persisted as audit metadata.
+    pub message: Option<String>,
+}
+
+/// Per-call options for [`Client::put`].
+///
+/// [`Client::put`]: super::Client::put
+#[derive(Debug, Default, Clone)]
+#[must_use]
+pub struct UpsertOptions {
+    /// Expected current version on the server (optimistic concurrency).
+    /// Ignored when `overwrite` is `true`. When both `expected_version`
+    /// and `overwrite` are unset, the server applies its default
+    /// version-check policy.
+    pub expected_version: Option<i64>,
+    /// Skip the optimistic version check entirely. Mutually exclusive
+    /// with `expected_version`; set this when you intend to clobber the
+    /// server's current revision.
+    pub overwrite: bool,
+    /// Free-form description of the change, persisted as audit metadata.
+    pub message: Option<String>,
+}
+
 /// Body of a dashboard create or update request.
 ///
 /// Use [`Client::create`] or [`Client::put`] rather than building this
@@ -73,7 +105,7 @@ pub struct UpsertRequest<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<i64>,
     /// When `true`, the server skips the version check entirely.
-    #[serde(default, skip_serializing_if = "is_false")]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub overwrite: bool,
     /// Desired `uid`. Optional on create; the helper sets it for `PUT`.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -81,11 +113,6 @@ pub struct UpsertRequest<'a> {
     /// Free-form description of the change, persisted as audit metadata.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<&'a str>,
-}
-
-#[allow(clippy::trivially_copy_pass_by_ref)]
-fn is_false(b: &bool) -> bool {
-    !*b
 }
 
 /// Response envelope shared by `POST /v2/dashboards` and
@@ -155,11 +182,26 @@ pub struct DashboardDocument {
 
 /// One chart on a dashboard.
 ///
-/// Each variant carries the shared [`ChartBase`] fields plus any
-/// chart-specific keys preserved verbatim in [`ChartBase::extras`].
+/// The wire payload is `untagged` at this level: serde tries the typed
+/// [`KnownChart`] decode first, and falls back to [`Chart::Unknown`] for
+/// chart types the SDK doesn't yet know about. The fallback preserves the
+/// raw JSON verbatim so `get` → `put` round-trips don't drop server-side
+/// fields the SDK pre-dates.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum Chart {
+    /// One of the chart variants the SDK models explicitly.
+    Known(KnownChart),
+    /// A chart variant the SDK doesn't model. Held as raw JSON so it
+    /// round-trips cleanly through `put`.
+    Unknown(serde_json::Value),
+}
+
+/// Chart variants the SDK models explicitly. The wire discriminator is
+/// the `type` field on each variant.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "type")]
-pub enum Chart {
+pub enum KnownChart {
     /// Time-series line/area chart.
     TimeSeries(ChartBase),
     /// Heatmap chart.
@@ -181,19 +223,52 @@ pub enum Chart {
 }
 
 impl Chart {
+    /// Borrow the shared chart fields, when the variant is known.
+    /// Returns `None` for [`Chart::Unknown`].
+    #[must_use]
+    pub fn base(&self) -> Option<&ChartBase> {
+        match self {
+            Chart::Known(k) => Some(k.base()),
+            Chart::Unknown(_) => None,
+        }
+    }
+
+    /// Borrow the shared chart fields mutably, when the variant is known.
+    /// Returns `None` for [`Chart::Unknown`].
+    #[must_use]
+    pub fn base_mut(&mut self) -> Option<&mut ChartBase> {
+        match self {
+            Chart::Known(k) => Some(k.base_mut()),
+            Chart::Unknown(_) => None,
+        }
+    }
+
+    /// Human-readable type name, exactly as it appears on the wire.
+    /// `None` for [`Chart::Unknown`] when the raw JSON doesn't carry a
+    /// string `"type"` field.
+    #[must_use]
+    pub fn type_str(&self) -> Option<&str> {
+        match self {
+            Chart::Known(k) => Some(k.type_str()),
+            Chart::Unknown(v) => v.get("type").and_then(serde_json::Value::as_str),
+        }
+    }
+}
+
+impl KnownChart {
     /// Borrow the shared chart fields regardless of variant.
     #[must_use]
     pub fn base(&self) -> &ChartBase {
         match self {
-            Chart::TimeSeries(b)
-            | Chart::Heatmap(b)
-            | Chart::LogStream(b)
-            | Chart::Pie(b)
-            | Chart::Scatter(b)
-            | Chart::Table(b)
-            | Chart::TopK(b)
-            | Chart::Statistic(b)
-            | Chart::Note(b) => b,
+            KnownChart::TimeSeries(b)
+            | KnownChart::Heatmap(b)
+            | KnownChart::LogStream(b)
+            | KnownChart::Pie(b)
+            | KnownChart::Scatter(b)
+            | KnownChart::Table(b)
+            | KnownChart::TopK(b)
+            | KnownChart::Statistic(b)
+            | KnownChart::Note(b) => b,
         }
     }
 
@@ -201,15 +276,15 @@ impl Chart {
     #[must_use]
     pub fn base_mut(&mut self) -> &mut ChartBase {
         match self {
-            Chart::TimeSeries(b)
-            | Chart::Heatmap(b)
-            | Chart::LogStream(b)
-            | Chart::Pie(b)
-            | Chart::Scatter(b)
-            | Chart::Table(b)
-            | Chart::TopK(b)
-            | Chart::Statistic(b)
-            | Chart::Note(b) => b,
+            KnownChart::TimeSeries(b)
+            | KnownChart::Heatmap(b)
+            | KnownChart::LogStream(b)
+            | KnownChart::Pie(b)
+            | KnownChart::Scatter(b)
+            | KnownChart::Table(b)
+            | KnownChart::TopK(b)
+            | KnownChart::Statistic(b)
+            | KnownChart::Note(b) => b,
         }
     }
 
@@ -217,15 +292,15 @@ impl Chart {
     #[must_use]
     pub fn type_str(&self) -> &'static str {
         match self {
-            Chart::TimeSeries(_) => "TimeSeries",
-            Chart::Heatmap(_) => "Heatmap",
-            Chart::LogStream(_) => "LogStream",
-            Chart::Pie(_) => "Pie",
-            Chart::Scatter(_) => "Scatter",
-            Chart::Table(_) => "Table",
-            Chart::TopK(_) => "TopK",
-            Chart::Statistic(_) => "Statistic",
-            Chart::Note(_) => "Note",
+            KnownChart::TimeSeries(_) => "TimeSeries",
+            KnownChart::Heatmap(_) => "Heatmap",
+            KnownChart::LogStream(_) => "LogStream",
+            KnownChart::Pie(_) => "Pie",
+            KnownChart::Scatter(_) => "Scatter",
+            KnownChart::Table(_) => "Table",
+            KnownChart::TopK(_) => "TopK",
+            KnownChart::Statistic(_) => "Statistic",
+            KnownChart::Note(_) => "Note",
         }
     }
 }
@@ -240,7 +315,7 @@ pub struct ChartBase {
     /// Stable per-dashboard chart identifier; matches [`LayoutItem::i`].
     pub id: String,
     /// Display name shown above the chart.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     /// Raw query specification for this chart.
     #[serde(default, skip_serializing_if = "Option::is_none")]
