@@ -47,7 +47,9 @@ pub mod limits;
 mod serde;
 
 pub mod annotations;
+pub mod dashboards;
 pub mod datasets;
+pub mod metrics;
 pub mod users;
 
 pub use client::{Client, RequestOptions};

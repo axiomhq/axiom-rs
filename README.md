@@ -24,6 +24,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### Metrics and dashboards
+
+In addition to events (datasets / APL), `axiom-rs` exposes the
+metrics-info, MPL query, and `v2` dashboards APIs:
+
+```rust,no_run
+use axiom_rs::{metrics::MplQueryOptions, Client};
+use chrono::{Duration, Utc};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::new()?;
+    let end = Utc::now();
+    let start = end - Duration::hours(1);
+
+    // Discover metrics in a dataset.
+    let info = client.metrics().list("my-metrics-dataset", start, end).await?;
+    for (name, meta) in &info {
+        println!("{name}\t{:?}", meta.kind);
+    }
+
+    // Run an MPL query.
+    let res = client
+        .metrics()
+        .query("metric('http_requests_total')", start, end, MplQueryOptions::default())
+        .await?;
+    println!("{} series, trace = {:?}", res.series.len(), res.trace_id);
+
+    // List dashboards.
+    for d in client.dashboards().list().await? {
+        println!("{}\t{}", d.uid, d.name().unwrap_or("(unnamed)"));
+    }
+
+    Ok(())
+}
+```
+
 ## Install
 
 ```sh

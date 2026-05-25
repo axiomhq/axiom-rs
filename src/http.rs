@@ -121,6 +121,18 @@ impl Client {
             .await
     }
 
+    /// `GET` with an explicit set of additional request headers (typically a
+    /// custom `Accept`). Existing default headers from the client are
+    /// preserved.
+    pub(crate) async fn get_with_headers<S, H>(&self, path: S, headers: H) -> Result<Response>
+    where
+        S: AsRef<str>,
+        H: Into<Option<HeaderMap>>,
+    {
+        self.execute(http::Method::GET, path.as_ref(), Body::Empty, headers)
+            .await
+    }
+
     pub(crate) async fn post<S, P>(&self, path: S, payload: P) -> Result<Response>
     where
         S: AsRef<str>,
@@ -131,6 +143,29 @@ impl Client {
             path,
             Body::Json(serde_json::to_value(payload).map_err(Error::Serialize)?),
             None,
+        )
+        .await
+    }
+
+    /// `POST` JSON payload with an explicit set of additional request headers
+    /// (typically a custom `Accept`). Existing default headers from the client
+    /// are preserved.
+    pub(crate) async fn post_with_headers<S, P, H>(
+        &self,
+        path: S,
+        payload: P,
+        headers: H,
+    ) -> Result<Response>
+    where
+        S: AsRef<str>,
+        P: Serialize,
+        H: Into<Option<HeaderMap>>,
+    {
+        self.execute(
+            http::Method::POST,
+            path,
+            Body::Json(serde_json::to_value(payload).map_err(Error::Serialize)?),
+            headers,
         )
         .await
     }
