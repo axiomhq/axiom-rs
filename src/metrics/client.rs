@@ -8,15 +8,37 @@ use serde::Serialize;
 use tracing::instrument;
 
 use crate::{
-    error::Result,
+    error::{Error, Result},
     http,
     metrics::model::{MetricInfo, MetricsQueryResponse},
 };
+
+/// `?start=...&end=...` query string used by every metrics-info endpoint.
+/// Serialised through `serde_qs` so we get consistent encoding without
+/// hand-rolling a percent-encoder for the timestamps.
+#[derive(Serialize)]
+struct TimeRange {
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+}
+
+impl TimeRange {
+    fn new(start: DateTime<Utc>, end: DateTime<Utc>) -> Self {
+        Self { start, end }
+    }
+
+    /// Render as `start=...&end=...` (no leading `?`).
+    fn to_query(&self) -> Result<String> {
+        serde_qs::to_string(self).map_err(Error::from)
+    }
+}
 
 /// Accept header for the metrics-info endpoint.
 const ACCEPT_METRICS_INFO_V2: &str = "application/vnd.metrics-info.v2+json";
 /// Accept header for the `_mpl` query endpoint.
 const ACCEPT_METRICS_V2: &str = "application/json+metrics.v2";
+/// Accept header for the self-describing MPL spec.
+const ACCEPT_MARKDOWN: &str = "text/markdown";
 
 /// Provides methods to work with Axiom metrics: metric discovery, tag
 /// listing, and MPL queries against the edge endpoint.
@@ -38,22 +60,15 @@ impl<'client> Client<'client> {
     /// Returns an error if the HTTP request fails or the response cannot be
     /// deserialised.
     #[instrument(skip(self))]
-    pub async fn list<D>(
+    pub async fn list(
         &self,
-        dataset: D,
+        dataset: impl Into<String> + FmtDebug,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
-    ) -> Result<BTreeMap<String, MetricInfo>>
-    where
-        D: Into<String> + FmtDebug,
-    {
+    ) -> Result<BTreeMap<String, MetricInfo>> {
         let dataset = dataset.into();
-        let path = format!(
-            "/v1/query/metrics/info/datasets/{}/metrics?start={}&end={}",
-            dataset,
-            encode_rfc3339(start),
-            encode_rfc3339(end),
-        );
+        let qs = TimeRange::new(start, end).to_query()?;
+        let path = format!("/v1/query/metrics/info/datasets/{dataset}/metrics?{qs}");
         self.http_client
             .get_with_headers(path, accept_header(ACCEPT_METRICS_INFO_V2))
             .await?
@@ -68,25 +83,18 @@ impl<'client> Client<'client> {
     /// Returns an error if the HTTP request fails or the response cannot be
     /// deserialised.
     #[instrument(skip(self))]
-    pub async fn tags<D, M>(
+    pub async fn tags(
         &self,
-        dataset: D,
-        metric: M,
+        dataset: impl Into<String> + FmtDebug,
+        metric: impl Into<String> + FmtDebug,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
-    ) -> Result<Vec<String>>
-    where
-        D: Into<String> + FmtDebug,
-        M: Into<String> + FmtDebug,
-    {
+    ) -> Result<Vec<String>> {
         let dataset = dataset.into();
-        let metric = metric.into();
+        let metric = encode_segment(&metric.into());
+        let qs = TimeRange::new(start, end).to_query()?;
         let path = format!(
-            "/v1/query/metrics/info/datasets/{}/metrics/{}/tags?start={}&end={}",
-            dataset,
-            url_segment(&metric),
-            encode_rfc3339(start),
-            encode_rfc3339(end),
+            "/v1/query/metrics/info/datasets/{dataset}/metrics/{metric}/tags?{qs}"
         );
         self.http_client.get(path).await?.json().await
     }
@@ -98,31 +106,109 @@ impl<'client> Client<'client> {
     /// Returns an error if the HTTP request fails or the response cannot be
     /// deserialised.
     #[instrument(skip(self))]
-    pub async fn tag_values<D, M, T>(
+    pub async fn tag_values(
         &self,
-        dataset: D,
-        metric: M,
-        tag: T,
+        dataset: impl Into<String> + FmtDebug,
+        metric: impl Into<String> + FmtDebug,
+        tag: impl Into<String> + FmtDebug,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
-    ) -> Result<Vec<String>>
-    where
-        D: Into<String> + FmtDebug,
-        M: Into<String> + FmtDebug,
-        T: Into<String> + FmtDebug,
-    {
+    ) -> Result<Vec<String>> {
         let dataset = dataset.into();
-        let metric = metric.into();
-        let tag = tag.into();
+        let metric = encode_segment(&metric.into());
+        let tag = encode_segment(&tag.into());
+        let qs = TimeRange::new(start, end).to_query()?;
         let path = format!(
-            "/v1/query/metrics/info/datasets/{}/metrics/{}/tags/{}/values?start={}&end={}",
-            dataset,
-            url_segment(&metric),
-            url_segment(&tag),
-            encode_rfc3339(start),
-            encode_rfc3339(end),
+            "/v1/query/metrics/info/datasets/{dataset}/metrics/{metric}/tags/{tag}/values?{qs}"
         );
         self.http_client.get(path).await?.json().await
+    }
+
+    /// List the tag names observed across **all metrics** of `dataset`
+    /// between `start` and `end`.
+    ///
+    /// The per-metric pair lives on [`Client::tags`] / [`Client::tag_values`];
+    /// this dataset-level variant is the right starting point when you
+    /// don't yet know which metrics carry the tag you care about.
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails or the response cannot be
+    /// deserialised.
+    #[instrument(skip(self))]
+    pub async fn dataset_tags(
+        &self,
+        dataset: impl Into<String> + FmtDebug,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<String>> {
+        let dataset = dataset.into();
+        let qs = TimeRange::new(start, end).to_query()?;
+        let path = format!("/v1/query/metrics/info/datasets/{dataset}/tags?{qs}");
+        self.http_client.get(path).await?.json().await
+    }
+
+    /// List the observed values for a dataset-level `tag` across all
+    /// metrics of `dataset` between `start` and `end`.
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails or the response cannot be
+    /// deserialised.
+    #[instrument(skip(self))]
+    pub async fn dataset_tag_values(
+        &self,
+        dataset: impl Into<String> + FmtDebug,
+        tag: impl Into<String> + FmtDebug,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<String>> {
+        let dataset = dataset.into();
+        let tag = encode_segment(&tag.into());
+        let qs = TimeRange::new(start, end).to_query()?;
+        let path = format!("/v1/query/metrics/info/datasets/{dataset}/tags/{tag}/values?{qs}");
+        self.http_client.get(path).await?.json().await
+    }
+
+    /// Find metrics in `dataset` that carry `value` on any tag, between
+    /// `start` and `end`. Searches tag **values**, not metric names — use
+    /// this when you know a specific entity (service, host, device) and
+    /// want to find which metrics report it.
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails or the response cannot be
+    /// deserialised.
+    #[instrument(skip(self))]
+    pub async fn find_metrics(
+        &self,
+        dataset: impl Into<String> + FmtDebug,
+        value: impl Into<String> + FmtDebug,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<String>> {
+        let dataset = dataset.into();
+        let qs = TimeRange::new(start, end).to_query()?;
+        let path = format!("/v1/query/metrics/info/datasets/{dataset}/metrics?{qs}");
+        let body = FindMetricsRequest {
+            value: value.into(),
+        };
+        self.http_client.post(path, body).await?.json().await
+    }
+
+    /// Fetch the self-describing MPL spec as markdown.
+    ///
+    /// The MPL operator set evolves; this endpoint is the source of truth
+    /// for syntax, operator names, and parameter literal formats. Useful
+    /// for grounding LLM callers in the current surface.
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP request fails or the server reports an
+    /// error.
+    #[instrument(skip(self))]
+    pub async fn spec(&self) -> Result<String> {
+        self.http_client
+            .options_with_headers("/v1/query/_mpl", accept_header(ACCEPT_MARKDOWN))
+            .await?
+            .text()
+            .await
     }
 
     /// Run an MPL query against the edge endpoint.
@@ -131,8 +217,8 @@ impl<'client> Client<'client> {
     /// is MPL, not APL.
     ///
     /// # Errors
-    /// Returns an error if the HTTP request fails or the response cannot be
-    /// deserialised.
+    /// Returns an error if the HTTP request fails, the response cannot be
+    /// deserialised, or a trace-id response header contains invalid bytes.
     #[instrument(skip(self, opts))]
     pub async fn query<S, O>(
         &self,
@@ -146,12 +232,20 @@ impl<'client> Client<'client> {
         O: Into<Option<MplQueryOptions>>,
     {
         let opts = opts.into().unwrap_or_default();
+        // The server expects parameter keys prefixed with `param__`.
+        // Callers pass plain variable names (e.g. `svc`); we apply the
+        // prefix here so the SDK surface mirrors the MPL `$svc` syntax.
+        let params = opts
+            .params
+            .into_iter()
+            .map(|(k, v)| (format!("param__{k}"), v))
+            .collect();
         let body = MplQueryRequest {
             apl: mpl.to_string(),
             start_time: start,
             end_time: end,
             query_edge_deployment: opts.edge_deployment,
-            query_params: opts.params,
+            params,
         };
 
         let resp = self
@@ -162,8 +256,9 @@ impl<'client> Client<'client> {
         let trace_id = resp
             .headers()
             .get("x-axiom-trace-id")
-            .or_else(|| resp.headers().get("traceparent"))
-            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_str())
+            .transpose()
+            .map_err(|_e| Error::InvalidTraceId)?
             .map(ToString::to_string);
 
         let mut result: MetricsQueryResponse = resp.json().await?;
@@ -174,14 +269,24 @@ impl<'client> Client<'client> {
 
 /// Per-call options for [`Client::query`].
 #[derive(Debug, Clone, Default)]
+#[must_use]
 pub struct MplQueryOptions {
     /// Override the edge deployment string sent as `queryEdgeDeployment`
     /// (e.g. `"cloud.eu-central-1.aws"`). When `None` the server picks
     /// a default for the configured edge URL.
     pub edge_deployment: Option<String>,
-    /// User-supplied MPL `param` values; serialised as `queryParams`. Use
-    /// an empty map to omit the field entirely.
+    /// MPL `param` values, keyed by the variable name (no leading `$`,
+    /// no `param__` prefix — the SDK adds it). Values are forwarded
+    /// verbatim as **MPL literals**, so string literals must include their
+    /// own quotes (e.g. `"\"frontend\""`, not `"frontend"`); see the MPL
+    /// spec for per-type literal syntax. An empty map omits the field
+    /// entirely.
     pub params: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Serialize)]
+struct FindMetricsRequest {
+    value: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -192,8 +297,10 @@ struct MplQueryRequest {
     end_time: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     query_edge_deployment: Option<String>,
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    query_params: BTreeMap<String, String>,
+    // Wire name is `params`, not `queryParams`. Keys must already carry
+    // the `param__` prefix (applied by `Client::query`).
+    #[serde(rename = "params", skip_serializing_if = "BTreeMap::is_empty")]
+    params: BTreeMap<String, String>,
 }
 
 /// Build an `Accept`-only header map.
@@ -206,14 +313,10 @@ fn accept_header(value: &'static str) -> HeaderMap {
     headers
 }
 
-/// Format a timestamp the way the metrics-info endpoint requires:
-/// strict RFC3339, percent-encoded so `:` and `+` round-trip safely.
-fn encode_rfc3339(t: DateTime<Utc>) -> String {
-    url_segment(&t.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
-}
-
-/// Minimal percent-encoding for a URL path/query segment.
-fn url_segment(s: &str) -> String {
+/// Percent-encode a URL path segment using the RFC3986 unreserved set.
+/// Used for `metric` and `tag` identifiers that flow into the path; the
+/// `?start=...&end=...` query string is built via `serde_qs`.
+fn encode_segment(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for b in s.bytes() {
         match b {

@@ -25,9 +25,9 @@ pub struct MetricInfo {
 
 /// Response body of `POST /v1/query/_mpl`.
 ///
-/// `trace_id` is populated from the response's `x-axiom-trace-id` (or
-/// `traceparent`) header — it is **not** part of the JSON body, so serde
-/// leaves it `None` on decode and the SDK fills it in.
+/// `trace_id` is populated from the response's `x-axiom-trace-id` header
+/// — it is **not** part of the JSON body, so serde leaves it `None` on
+/// decode and the SDK fills it in.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct MetricsQueryResponse {
     /// Per-series result. Empty when the query matched nothing.

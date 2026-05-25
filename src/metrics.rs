@@ -34,6 +34,7 @@
 //! ```
 mod client;
 mod model;
+#[cfg(test)]
 mod tests;
 
 pub use client::{Client, MplQueryOptions};
