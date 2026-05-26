@@ -101,6 +101,19 @@ pub enum Error {
     )]
     /// Personal tokens are not supported for edge endpoints.
     PersonalTokenNotSupportedForEdge,
+    #[error(
+        "Dashboard version mismatch on uid {uid:?}: server is at version {current}. \
+         Reload the dashboard or retry with `overwrite = true`."
+    )]
+    /// The server's optimistic version check rejected a dashboard write.
+    /// Carries the server's current version so the caller can show a useful
+    /// diff or reload prompt.
+    DashboardVersionConflict {
+        /// `uid` of the dashboard the conflict was reported for.
+        uid: String,
+        /// Current version on the server.
+        current: i64,
+    },
 }
 
 /// This is the manual implementation. We don't really care if the error is

@@ -16,14 +16,14 @@ use tokio_stream::StreamExt;
 use tracing::instrument;
 
 use crate::{
-    annotations,
+    annotations, dashboards,
     datasets::{
         self, ContentEncoding, ContentType, IngestStatus, Query, QueryOptions, QueryParams,
         QueryResult,
     },
     error::{Error, Result},
     http::{self, HeaderMap},
-    is_personal_token, users,
+    is_personal_token, metrics, users,
 };
 
 /// API URL is the URL for the Axiom Cloud API.
@@ -164,6 +164,19 @@ impl Client {
     #[must_use]
     pub fn annotations(&self) -> annotations::Client<'_> {
         annotations::Client::new(&self.api_http)
+    }
+
+    /// Returns a client for working with dashboards (`v2` API).
+    #[must_use]
+    pub fn dashboards(&self) -> dashboards::Client<'_> {
+        dashboards::Client::new(&self.api_http)
+    }
+
+    /// Returns a client for working with metrics — metric discovery, tags,
+    /// tag values, and MPL queries — against the edge URL.
+    #[must_use]
+    pub fn metrics(&self) -> metrics::Client<'_> {
+        metrics::Client::new(&self.edge_http)
     }
 
     /// Get the API url

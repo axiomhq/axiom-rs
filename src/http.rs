@@ -121,6 +121,18 @@ impl Client {
             .await
     }
 
+    /// `GET` with an explicit set of additional request headers (typically a
+    /// custom `Accept`). Existing default headers from the client are
+    /// preserved.
+    pub(crate) async fn get_with_headers<S, H>(&self, path: S, headers: H) -> Result<Response>
+    where
+        S: AsRef<str>,
+        H: Into<Option<HeaderMap>>,
+    {
+        self.execute(http::Method::GET, path.as_ref(), Body::Empty, headers)
+            .await
+    }
+
     pub(crate) async fn post<S, P>(&self, path: S, payload: P) -> Result<Response>
     where
         S: AsRef<str>,
@@ -131,6 +143,29 @@ impl Client {
             path,
             Body::Json(serde_json::to_value(payload).map_err(Error::Serialize)?),
             None,
+        )
+        .await
+    }
+
+    /// `POST` JSON payload with an explicit set of additional request headers
+    /// (typically a custom `Accept`). Existing default headers from the client
+    /// are preserved.
+    pub(crate) async fn post_with_headers<S, P, H>(
+        &self,
+        path: S,
+        payload: P,
+        headers: H,
+    ) -> Result<Response>
+    where
+        S: AsRef<str>,
+        P: Serialize,
+        H: Into<Option<HeaderMap>>,
+    {
+        self.execute(
+            http::Method::POST,
+            path,
+            Body::Json(serde_json::to_value(payload).map_err(Error::Serialize)?),
+            headers,
         )
         .await
     }
@@ -174,8 +209,22 @@ impl Client {
         S: AsRef<str>,
     {
         self.execute(http::Method::DELETE, path, Body::Empty, None)
+            .await?
+            .check_error()
             .await?;
         Ok(())
+    }
+
+    /// `OPTIONS` with an explicit set of additional request headers
+    /// (typically a custom `Accept`). Used by self-describing endpoints
+    /// such as the MPL spec at `OPTIONS /v1/query/_mpl`.
+    pub(crate) async fn options_with_headers<S, H>(&self, path: S, headers: H) -> Result<Response>
+    where
+        S: AsRef<str>,
+        H: Into<Option<HeaderMap>>,
+    {
+        self.execute(http::Method::OPTIONS, path.as_ref(), Body::Empty, headers)
+            .await
     }
 }
 
@@ -205,6 +254,44 @@ impl Response {
             .json::<T>()
             .await
             .map_err(Error::Deserialize)
+    }
+
+    /// Cheap status peek without consuming the response.
+    pub(crate) fn status(&self) -> http::StatusCode {
+        self.inner.status()
+    }
+
+    /// HTTP method this response was produced from.
+    pub(crate) fn method(&self) -> &http::Method {
+        &self.method
+    }
+
+    /// Path this response was produced from.
+    pub(crate) fn path(&self) -> &str {
+        &self.path
+    }
+
+    /// Read the response body as text, after running [`check_error`].
+    /// Use this for happy-path text consumers (e.g. the MPL spec at
+    /// `OPTIONS /v1/query/_mpl` returning markdown).
+    ///
+    /// [`check_error`]: Self::check_error
+    pub(crate) async fn text(self) -> Result<String> {
+        self.check_error()
+            .await?
+            .inner
+            .text()
+            .await
+            .map_err(Error::Http)
+    }
+
+    /// Read the raw response body as text **without** running
+    /// [`check_error`]. Used by callers that need to decode a typed error
+    /// envelope from a non-2xx body (e.g. dashboards' 412 conflict path).
+    ///
+    /// [`check_error`]: Self::check_error
+    pub(crate) async fn body_text_unchecked(self) -> Result<String> {
+        self.inner.text().await.map_err(Error::Http)
     }
 
     pub(crate) async fn check_error(self) -> Result<Response> {
@@ -273,6 +360,35 @@ mod test {
     use serde_json::json;
 
     use crate::{limits, Client, Error};
+
+    #[tokio::test]
+    async fn test_delete_surfaces_non_2xx_errors() -> Result<(), Box<dyn std::error::Error>> {
+        // Regression test for the C2 fix: `http::Client::delete` used to
+        // drop the response without checking the status, silently treating
+        // any HTTP error as success. It must now surface non-2xx as
+        // `Error::Axiom`.
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(DELETE).path("/v1/datasets/missing");
+            then.status(404)
+                .json_body(json!({ "message": "dataset not found" }));
+        });
+        let client = Client::builder()
+            .no_env()
+            .with_url(server.base_url())
+            .with_token("xapt-nope")
+            .build()?;
+
+        match client.datasets().delete("missing").await {
+            Err(Error::Axiom(axiom)) => {
+                assert_eq!(axiom.status, 404);
+                assert_eq!(axiom.message.as_deref(), Some("dataset not found"));
+            }
+            other => panic!("expected Error::Axiom on DELETE 404, got {:?}", other),
+        }
+        mock.assert_hits_async(1).await;
+        Ok(())
+    }
 
     #[tokio::test]
     async fn test_ingest_limit_exceeded() -> Result<(), Box<dyn std::error::Error>> {
@@ -436,7 +552,7 @@ mod test {
             .with_token("xaat-test")
             .with_edge("eu-central-1.aws.edge.axiom.co")
             .build()
-            .unwrap();
+            .expect("test client build");
 
         assert!(client.uses_edge());
         assert_eq!(client.edge_url(), "https://eu-central-1.aws.edge.axiom.co");
@@ -554,7 +670,7 @@ mod test {
             .with_token("xaat-test")
             .with_edge("eu-central-1.aws.edge.axiom.co")
             .build()
-            .unwrap();
+            .expect("test client build");
 
         assert_eq!(client.edge_url(), "https://eu-central-1.aws.edge.axiom.co");
         assert!(client.uses_edge());
@@ -568,7 +684,7 @@ mod test {
             .with_edge("eu-central-1.aws.edge.axiom.co")
             .with_edge_url("https://custom.ingest.endpoint")
             .build()
-            .unwrap();
+            .expect("test client build");
 
         assert_eq!(client.edge_url(), "https://custom.ingest.endpoint");
     }
@@ -580,7 +696,7 @@ mod test {
             .no_env()
             .with_token("xaat-test")
             .build()
-            .unwrap();
+            .expect("test client build");
 
         assert_eq!(client.api_url(), "https://api.axiom.co");
         assert_eq!(client.edge_url(), "https://api.axiom.co");
@@ -595,7 +711,7 @@ mod test {
             .with_token("xaat-test")
             .with_url("https://my-axiom-instance.example.com")
             .build()
-            .unwrap();
+            .expect("test client build");
 
         assert_eq!(client.api_url(), "https://my-axiom-instance.example.com");
         assert_eq!(client.edge_url(), "https://my-axiom-instance.example.com");
@@ -613,7 +729,7 @@ mod test {
             .with_token("xapt-personal-token")
             .with_edge("eu-central-1.aws.edge.axiom.co")
             .build()
-            .unwrap();
+            .expect("test client build");
 
         let result = client
             .ingest("test-dataset", vec![serde_json::json!({"foo": "bar"})])

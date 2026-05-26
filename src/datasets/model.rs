@@ -135,7 +135,18 @@ pub struct Dataset {
     /// The time the dataset was created at.
     #[serde(rename = "created")]
     pub created_at: DateTime<Utc>,
-    // ignored: integrationConfigs, integrationFilters, quickQueries
+    /// Dataset kind, e.g. `"otel:metrics:v1"`. `None` for legacy/event
+    /// datasets that pre-date the field, or when the server doesn't emit
+    /// it.
+    #[serde(default)]
+    pub kind: Option<String>,
+    /// Regional edge deployment for this dataset, e.g.
+    /// `"eu-central-1.aws.edge.axiom.co"`. `None` when the dataset isn't
+    /// pinned to an edge.
+    #[serde(rename = "edgeDeployment", default)]
+    pub edge_deployment: Option<String>,
+    // ignored: id, canWrite, useRetentionPeriod, retentionDays, mapFields,
+    // integrationConfigs, integrationFilters, quickQueries
 }
 
 /// Details of the information stored in a dataset.
@@ -696,6 +707,38 @@ pub struct EntryGroupAgg {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn dataset_decodes_kind_and_edge_deployment() {
+        let json = r#"{
+            "name": "metrics-eu",
+            "description": "",
+            "who": "u1",
+            "created": "2024-01-01T00:00:00Z",
+            "kind": "otel:metrics:v1",
+            "edgeDeployment": "eu-central-1.aws.edge.axiom.co"
+        }"#;
+        let dataset: Dataset = serde_json::from_str(json).expect("valid dataset json");
+        assert_eq!(dataset.kind.as_deref(), Some("otel:metrics:v1"));
+        assert_eq!(
+            dataset.edge_deployment.as_deref(),
+            Some("eu-central-1.aws.edge.axiom.co")
+        );
+    }
+
+    #[test]
+    fn dataset_decodes_without_new_fields() {
+        // Backwards-compat: missing fields must decode as `None`.
+        let json = r#"{
+            "name": "legacy",
+            "description": "",
+            "who": "u1",
+            "created": "2024-01-01T00:00:00Z"
+        }"#;
+        let dataset: Dataset = serde_json::from_str(json).expect("valid dataset json");
+        assert!(dataset.kind.is_none());
+        assert!(dataset.edge_deployment.is_none());
+    }
 
     #[test]
     fn test_aggregation_op() {
