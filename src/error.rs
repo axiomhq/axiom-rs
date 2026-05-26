@@ -42,6 +42,25 @@ pub enum Error {
     #[error("Failed to deserialize response: {0}")]
     /// Failed to deserialize response.
     Deserialize(reqwest::Error),
+    #[error(
+        "Failed to decode response body from {method} {path}: {source}\nBody snippet: {body}"
+    )]
+    /// Failed to deserialize a 2xx response body. Carries a snippet of the
+    /// raw body so the caller (and end user) can see what shape the server
+    /// actually returned — the common cause is a `MetricsQueryResponse`
+    /// (or similar) gaining a field, or the wrong `Accept` header pulling
+    /// back a different variant.
+    DeserializeBody {
+        /// HTTP method that produced the response.
+        method: http::Method,
+        /// Request path that produced the response.
+        path: String,
+        /// Underlying serde error.
+        #[source]
+        source: serde_json::Error,
+        /// Snippet of the raw response body (truncated).
+        body: String,
+    },
     #[error("Http error: {0}")]
     /// HTTP error.
     Http(reqwest::Error),

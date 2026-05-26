@@ -44,9 +44,15 @@ pub struct MetricsSeries {
     /// Source metric name.
     pub metric: String,
     /// Tag bindings that uniquely identify this series (e.g.
-    /// `{"service": "api", "code": "200"}`).
+    /// `{"service": "api", "code": 200, "healthy": true}`).
+    ///
+    /// The metrics wire format allows arbitrary JSON values — strings,
+    /// numbers, booleans, nulls, even arrays/objects — so we surface
+    /// the raw [`serde_json::Value`] and let the caller decide how to
+    /// render them (string consumers can use
+    /// `Value::as_str().unwrap_or(&v.to_string())` or similar).
     #[serde(default)]
-    pub tags: HashMap<String, String>,
+    pub tags: HashMap<String, serde_json::Value>,
     /// First-sample timestamp in unix milliseconds.
     pub start: i64,
     /// Step size between samples in milliseconds.
@@ -56,3 +62,5 @@ pub struct MetricsSeries {
     #[serde(default)]
     pub data: Vec<Option<f64>>,
 }
+
+
