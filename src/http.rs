@@ -256,6 +256,25 @@ impl Response {
             .map_err(Error::Deserialize)
     }
 
+    /// Like [`Self::json`], but reads the body to text first and decodes
+    /// via `serde_json::from_str` so a decode failure can include a
+    /// snippet of the offending body in the error. Use this on endpoints
+    /// where the response shape is liable to drift (versioned `Accept`
+    /// headers, schema additions) and the error message needs to be
+    /// actionable.
+    pub(crate) async fn json_with_body_snippet<T: DeserializeOwned>(self) -> Result<T> {
+        let resp = self.check_error().await?;
+        let method = resp.method.clone();
+        let path = resp.path.clone();
+        let body = resp.inner.text().await.map_err(Error::Http)?;
+        serde_json::from_str::<T>(&body).map_err(|source| Error::DeserializeBody {
+            method,
+            path,
+            source,
+            body: snippet(&body, 400),
+        })
+    }
+
     /// Cheap status peek without consuming the response.
     pub(crate) fn status(&self) -> http::StatusCode {
         self.inner.status()
@@ -344,6 +363,19 @@ impl Response {
 
     pub(crate) fn headers(&self) -> &header::HeaderMap {
         self.inner.headers()
+    }
+}
+
+/// Truncate `s` to at most `max` characters, appending `…` when cut.
+/// Used by [`Response::json_with_body_snippet`] so a decode failure can
+/// surface a body sample without flooding logs.
+fn snippet(s: &str, max: usize) -> String {
+    let trimmed = s.trim();
+    if trimmed.chars().count() <= max {
+        trimmed.to_string()
+    } else {
+        let cut: String = trimmed.chars().take(max).collect();
+        format!("{cut}…")
     }
 }
 

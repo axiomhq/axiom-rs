@@ -259,7 +259,11 @@ impl<'client> Client<'client> {
             .map_err(|_e| Error::InvalidTraceId)?
             .map(ToString::to_string);
 
-        let mut result: MetricsQueryResponse = resp.json().await?;
+        // Use the body-snippet decoder: the `_mpl` response shape is the
+        // most likely place for a server/client schema drift, so on
+        // failure we want the user to see what the server actually
+        // returned instead of a generic "error decoding response body".
+        let mut result: MetricsQueryResponse = resp.json_with_body_snippet().await?;
         result.trace_id = trace_id;
         Ok(result)
     }
