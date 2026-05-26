@@ -62,5 +62,3 @@ pub struct MetricsSeries {
     #[serde(default)]
     pub data: Vec<Option<f64>>,
 }
-
-

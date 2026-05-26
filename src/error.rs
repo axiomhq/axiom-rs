@@ -42,9 +42,7 @@ pub enum Error {
     #[error("Failed to deserialize response: {0}")]
     /// Failed to deserialize response.
     Deserialize(reqwest::Error),
-    #[error(
-        "Failed to decode response body from {method} {path}: {source}\nBody snippet: {body}"
-    )]
+    #[error("Failed to decode response body from {method} {path}: {source}\nBody snippet: {body}")]
     /// Failed to deserialize a 2xx response body. Carries a snippet of the
     /// raw body so the caller (and end user) can see what shape the server
     /// actually returned — the common cause is a `MetricsQueryResponse`
