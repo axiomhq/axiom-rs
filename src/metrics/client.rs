@@ -171,6 +171,12 @@ impl<'client> Client<'client> {
     /// this when you know a specific entity (service, host, device) and
     /// want to find which metrics report it.
     ///
+    /// Returns a map of **metric name → the tag name(s) that carried the
+    /// searched value** on that metric, e.g. `{"http.server.duration":
+    /// ["service.name"]}`. The tags are useful for building a precise
+    /// follow-up filter (`where <tag> == <value>`) rather than guessing
+    /// which spelling holds the value.
+    ///
     /// # Errors
     /// Returns an error if the HTTP request fails or the response cannot be
     /// deserialised.
@@ -181,7 +187,7 @@ impl<'client> Client<'client> {
         value: impl Into<String> + FmtDebug,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
-    ) -> Result<Vec<String>> {
+    ) -> Result<BTreeMap<String, Vec<String>>> {
         let dataset = dataset.into();
         let qs = TimeRange::new(start, end).to_query()?;
         let path = format!("/v1/query/metrics/info/datasets/{dataset}/metrics?{qs}");

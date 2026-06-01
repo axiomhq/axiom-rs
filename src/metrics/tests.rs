@@ -205,8 +205,12 @@ async fn find_metrics() -> Result<(), Box<dyn std::error::Error>> {
         when.method(POST)
             .path("/v1/query/metrics/info/datasets/ds/metrics")
             .json_body(json!({ "value": "frontend" }));
-        then.status(200)
-            .json_body(json!(["http.server.duration", "http.server.requests"]));
+        // The endpoint returns a map of metric -> the tag name(s) that
+        // carried the searched value, not a bare list of metric names.
+        then.status(200).json_body(json!({
+            "http.server.duration": ["service.name"],
+            "http.server.requests": ["service.name", "peer.service"],
+        }));
     });
     let client = Client::builder()
         .no_env()
@@ -219,9 +223,17 @@ async fn find_metrics() -> Result<(), Box<dyn std::error::Error>> {
         .metrics()
         .find_metrics("ds", "frontend", start, end)
         .await?;
+    assert_eq!(metrics.len(), 2);
     assert_eq!(
-        metrics,
-        vec!["http.server.duration", "http.server.requests"]
+        metrics.get("http.server.duration"),
+        Some(&vec!["service.name".to_string()])
+    );
+    assert_eq!(
+        metrics.get("http.server.requests"),
+        Some(&vec![
+            "service.name".to_string(),
+            "peer.service".to_string()
+        ])
     );
     mock.assert_hits_async(1).await;
     Ok(())
